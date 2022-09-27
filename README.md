@@ -1,2 +1,2 @@
-# vsgPoints - Point Cloud rendering library and example suite for VulkanSceneGraph
+# vsgPoints - VulkanSceneGraph Point Cloud rendering
 
