@@ -226,7 +226,7 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
     vsg::info("fragmentShader = ", fragmentShader);
 
     auto shaderHints = vsg::ShaderCompileSettings::create();
-    std::vector<std::string>& defines = shaderHints->defines;
+    auto& defines = shaderHints->defines;
 
     vertexShader->module->hints = shaderHints;
     vertexShader->module->code = {};
@@ -323,7 +323,7 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
 
     auto mat = vsg::PhongMaterialValue::create();
     mat->value().alphaMask = 1.0f;
-    mat->value().alphaMaskCutoff = 0.99f;
+    mat->value().alphaMaskCutoff = 0.5f;
 
     auto material = vsg::DescriptorBuffer::create(mat, 10);
     descriptors.push_back(material);
