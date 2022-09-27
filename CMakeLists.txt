@@ -11,7 +11,7 @@ SET(VSGPOINTS_RELEASE_CANDIDATE 0)
 set(VSGPOINTS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "Root source directory of vsgPoints")
 set(VSGPOINTS_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE INTERNAL "Root binary directory of vsgPoints")
 
-list(APPEND CMAKE_MODULE_PATH ${VSGIMGUI_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${VSGPOINTS_SOURCE_DIR}/cmake)
 include(vsgMacros)
 
 # set the use of C++17 globally as all examples require it
@@ -23,6 +23,7 @@ if (VULKAN_SDK)
 endif()
 
 find_package(vsg 0.5.5 REQUIRED)
+find_package(vsgXchange 0.0.0 REQUIRED)
 
 vsg_setup_build_vars()
 vsg_setup_dir_vars()
