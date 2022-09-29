@@ -398,13 +398,6 @@ int main(int argc, char** argv)
     windowTraits->debugLayer = arguments.read({"--debug", "-d"});
     windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
 
-    vsg::GeometryInfo geomInfo;
-    geomInfo.dx.set(1.0f, 0.0f, 0.0f);
-    geomInfo.dy.set(0.0f, 1.0f, 0.0f);
-    geomInfo.dz.set(0.0f, 0.0f, 1.0f);
-
-    vsg::StateInfo stateInfo;
-
     arguments.read("--screen", windowTraits->screenNum);
     arguments.read("--display", windowTraits->display);
     auto numFrames = arguments.value(-1, "-f");
