@@ -278,7 +278,7 @@ vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg:
 
     if (arrays.empty()) return {};
     auto pointSize = vsg::vec2Value::create();
-    pointSize->value().set(interval*2.0f, interval);
+    pointSize->value().set(interval*3.0f, interval);
 
     vsg::info("pointsSize = ", pointSize->value());
     vsg::info("viewport = ", viewport->value());
@@ -312,7 +312,7 @@ int main(int argc, char** argv)
 #endif
 
     auto windowTraits = vsg::WindowTraits::create();
-    windowTraits->windowTitle = "vsgpoints";
+    windowTraits->windowTitle = "vsggeneratepoints";
 
     auto builder = vsg::Builder::create();
     builder->options = options;
