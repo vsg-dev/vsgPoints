@@ -90,7 +90,7 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
 #if 0
     textureData = vsg::read_cast<vsg::Data>("textures/lz.vsgb", options);
 #else
-    //itextureData = createParticleImage(64);
+    textureData = createParticleImage(64);
 #endif
     if (textureData)
     {
@@ -232,13 +232,27 @@ vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg:
 
     vsg::vec3 origin(position);
 
+    float dr = 1.0f / static_cast<float>(numRows-1);
+    float dc = 1.0f / static_cast<float>(numColumns-1);
+
+    auto computeZ = [&](float rr, float rc) -> float
+    {
+        return (sin(vsg::PIf * (1.0f+3.0f * rc + rr)) * 0.2f + 1.0f) * (size.z * 0.5f);
+    };
 
     auto computePoint = [&](size_t c, size_t r) -> std::tuple<vsg::vec3, vsg::vec3, vsg::ubvec4>
     {
-        float z = 128.0;
+        float gradient_ratio = 0.01;
+        float rc = static_cast<float>(c) * dc;
+        float rr = static_cast<float>(r) * dr;
+        float z = computeZ(rc, rr);
+        float dz_dc = computeZ(rc + dc*gradient_ratio, rr) - z;
+        float dz_dr = computeZ(rc, rr + dr*gradient_ratio) - z;
+
         vsg::vec3 vert(origin.x + interval * static_cast<float>(c), origin.y + interval * static_cast<float>(r), z);
-        vsg::vec3 norm(0.0f, 0.0f, 1.0f);
-        vsg::ubvec4 col(128, 255, 255, 255);
+        vsg::vec3 norm(-dz_dc / (gradient_ratio * interval), -dz_dr / (gradient_ratio * interval), 0.0f);
+        norm.z = sqrt(1.0f - norm.x*norm.x - norm.y*norm.y);
+        vsg::ubvec4 col(static_cast<uint8_t>(rc*255.0f), static_cast<uint8_t>(rr*255.0f), 255, 255);
         return {vert, norm, col};
     };
 
@@ -247,14 +261,7 @@ vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg:
     {
         for(size_t c = 0; (c < numColumns) && (vi < numPoints); ++c)
         {
-#if 1
-            float z = 128.0;
-            vsg::vec3 vert(origin.x + interval * static_cast<float>(c), origin.y + interval * static_cast<float>(r), z);
-            vsg::vec3 norm(0.0f, 0.0f, 1.0f);
-            vsg::ubvec4 col(128, 255, 255, 255);
-#else
             auto [vert, norm, col] = computePoint(c, r);
-#endif
 #if VERTEX_TYPE==4
             vertices->set(vi, vert);
 #else
@@ -267,11 +274,11 @@ vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg:
     }
 
     if (!perVertexNormals) normals->set(0, vsg::vec3(0.0f, 0.0f, 1.0f));
-    if (!perVertexColors) colors->set(0, vsg::ubvec4(255, 128, 255, 255));
+    if (!perVertexColors) colors->set(0, vsg::ubvec4(255, 255, 255, 255));
 
     if (arrays.empty()) return {};
     auto pointSize = vsg::vec2Value::create();
-    pointSize->value().set(interval, interval);
+    pointSize->value().set(interval*2.0f, interval);
 
     vsg::info("pointsSize = ", pointSize->value());
     vsg::info("viewport = ", viewport->value());
