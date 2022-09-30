@@ -6,13 +6,7 @@
 
 #include <iostream>
 
-struct FormatLayout
-{
-    int vertex = 0;
-    int normal = -1;
-    int rgb = -1;
-    int rgba = -1;
-};
+#define VERTEX_TYPE 4
 
 vsg::ref_ptr<vsg::Data> createParticleImage(uint32_t dim)
 {
@@ -40,11 +34,9 @@ vsg::ref_ptr<vsg::Data> createParticleImage(uint32_t dim)
     return data;
 }
 
-vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> options)
+vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> options, vsg::ref_ptr<vsg::vec4Value> viewport, vsg::ref_ptr<vsg::vec2Value> pointSize, bool lighting, VkVertexInputRate normalInputRate, VkVertexInputRate colorInputRate)
 {
-    bool lighting = true;
-    VkVertexInputRate normalInputRate = VK_VERTEX_INPUT_RATE_VERTEX; // VK_VERTEX_INPUT_RATE_INSTANCE
-    VkVertexInputRate colorInputRate = VK_VERTEX_INPUT_RATE_VERTEX;  // VK_VERTEX_INPUT_RATE_INSTANCE
+    bool blending = false;
 
     for (auto& path : options->paths)
     {
@@ -95,8 +87,11 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
     defines.push_back("VSG_POINT_SPRITE");
 
     vsg::ref_ptr<vsg::Data> textureData;
-    //textureData = vsg::read_cast<vsg::Data>("textures/lz.vsgb", options);
-    textureData = createParticleImage(64);
+#if 0
+    textureData = vsg::read_cast<vsg::Data>("textures/lz.vsgb", options);
+#else
+    //itextureData = createParticleImage(64);
+#endif
     if (textureData)
     {
         std::cout << "textureData = " << textureData << std::endl;
@@ -107,6 +102,8 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
     }
 
     {
+        descriptorBindings.push_back(VkDescriptorSetLayoutBinding{8, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr}); // Viewport
+        descriptorBindings.push_back(VkDescriptorSetLayoutBinding{9, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr}); // PointSize
         descriptorBindings.push_back(VkDescriptorSetLayoutBinding{10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}); // Material
     }
 
@@ -127,11 +124,15 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
     auto pipelineLayout = vsg::PipelineLayout::create(descriptorSetLayouts, pushConstantRanges);
 
     vsg::VertexInputState::Bindings vertexBindingsDescriptions{
-        VkVertexInputBindingDescription{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // vertex data
+        VkVertexInputBindingDescription{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX} // vertex data
     };
 
     vsg::VertexInputState::Attributes vertexAttributeDescriptions{
-        VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0}, // vertex data
+#if VERTEX_TYPE==4
+        VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0} // vertex data
+#else
+        VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R8G8B8A8_UNORM, 0} // vertex data
+#endif
     };
 
     vertexBindingsDescriptions.push_back(VkVertexInputBindingDescription{1, sizeof(vsg::vec3), normalInputRate});  // normal data
@@ -142,7 +143,6 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
 
     auto rasterState = vsg::RasterizationState::create();
 
-    bool blending = true;
     auto colorBlendState = vsg::ColorBlendState::create();
     colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
         {blending, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
@@ -175,12 +175,16 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
         descriptors.push_back(texture);
     }
 
+    descriptors.push_back( vsg::DescriptorBuffer::create(viewport, 8) );
+    descriptors.push_back( vsg::DescriptorBuffer::create(pointSize, 9) );
+
     auto mat = vsg::PhongMaterialValue::create();
     mat->value().alphaMask = 1.0f;
-    mat->value().alphaMaskCutoff = 0.5f;
+    mat->value().alphaMaskCutoff = 0.0025f;
 
     auto material = vsg::DescriptorBuffer::create(mat, 10);
     descriptors.push_back(material);
+
 
     auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, descriptors);
     auto bindDescriptorSets = vsg::BindDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, vsg::DescriptorSets{descriptorSet});
@@ -197,11 +201,20 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
     return sg;
 }
 
-vsg::ref_ptr<vsg::Node> create(const vsg::vec3& position, const vsg::vec3& size, size_t numPoints, bool perVertexNormals, bool perVertexColors, vsg::ref_ptr<const vsg::Options> options)
+vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg::dvec3& position, const vsg::dvec3& size, size_t numPoints, bool perVertexNormals, bool perVertexColors, vsg::ref_ptr<const vsg::Options> options)
 {
+    bool lighting = perVertexNormals;
+    VkVertexInputRate normalInputRate = perVertexNormals ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
+    VkVertexInputRate colorInputRate = perVertexColors ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
+
     vsg::DataList arrays;
 
+#if VERTEX_TYPE==4
     auto vertices = vsg::vec3Array::create(numPoints);
+#else
+    auto vertices = vsg::ubvec4Array::create(numPoints);
+#endif
+
     arrays.push_back(vertices);
 
     auto normals = vsg::vec3Array::create(perVertexNormals ? numPoints : 1);
@@ -217,16 +230,36 @@ vsg::ref_ptr<vsg::Node> create(const vsg::vec3& position, const vsg::vec3& size,
     size_t numColumns = static_cast<size_t>(ceil(size.x / interval));
     size_t numRows = static_cast<size_t>(ceil(size.y / interval));
 
+    vsg::vec3 origin(position);
+
+
+    auto computePoint = [&](size_t c, size_t r) -> std::tuple<vsg::vec3, vsg::vec3, vsg::ubvec4>
+    {
+        float z = 128.0;
+        vsg::vec3 vert(origin.x + interval * static_cast<float>(c), origin.y + interval * static_cast<float>(r), z);
+        vsg::vec3 norm(0.0f, 0.0f, 1.0f);
+        vsg::ubvec4 col(128, 255, 255, 255);
+        return {vert, norm, col};
+    };
+
     size_t vi = 0;
     for(size_t r = 0; r < numRows; ++r)
     {
         for(size_t c = 0; (c < numColumns) && (vi < numPoints); ++c)
         {
-            float z = 0.0;
-            vsg::vec3 vert(position.x + interval * static_cast<float>(c), position.y + interval * static_cast<float>(r), z);
+#if 1
+            float z = 128.0;
+            vsg::vec3 vert(origin.x + interval * static_cast<float>(c), origin.y + interval * static_cast<float>(r), z);
             vsg::vec3 norm(0.0f, 0.0f, 1.0f);
             vsg::ubvec4 col(128, 255, 255, 255);
+#else
+            auto [vert, norm, col] = computePoint(c, r);
+#endif
+#if VERTEX_TYPE==4
             vertices->set(vi, vert);
+#else
+            vertices->set(vi, vsg::ubvec4(static_cast<uint8_t>(vert.x), static_cast<uint8_t>(vert.y), 128/*static_cast<uint8_t>(vert.z)*/, 0));
+#endif
             if (perVertexNormals) normals->set(vi, norm);
             if (perVertexColors) colors->set(vi, col);
             ++vi;
@@ -237,6 +270,11 @@ vsg::ref_ptr<vsg::Node> create(const vsg::vec3& position, const vsg::vec3& size,
     if (!perVertexColors) colors->set(0, vsg::ubvec4(255, 128, 255, 255));
 
     if (arrays.empty()) return {};
+    auto pointSize = vsg::vec2Value::create();
+    pointSize->value().set(interval, interval);
+
+    vsg::info("pointsSize = ", pointSize->value());
+    vsg::info("viewport = ", viewport->value());
 
     auto bindVertexBuffers = vsg::BindVertexBuffers::create();
     bindVertexBuffers->assignArrays(arrays);
@@ -245,7 +283,7 @@ vsg::ref_ptr<vsg::Node> create(const vsg::vec3& position, const vsg::vec3& size,
     commands->addChild(bindVertexBuffers);
     commands->addChild(vsg::Draw::create(vertices->size(), 1, 0, 0));
 
-    auto sg = createStateGroup(options);
+    auto sg = createStateGroup(options, viewport, pointSize, lighting, normalInputRate, colorInputRate);
 
     if (!sg) return commands;
 
@@ -277,8 +315,8 @@ int main(int argc, char** argv)
     windowTraits->debugLayer = arguments.read({"--debug", "-d"});
     windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
 
-    vsg::vec3 position(0.0, 0.0, 0.0);
-    vsg::vec3 size(10.0, 10.0, 10.0);
+    vsg::dvec3 position(0.0, 0.0, 0.0);
+    vsg::dvec3 size(256.0, 256.0, 256.0);
 
     arguments.read("--screen", windowTraits->screenNum);
     arguments.read("--display", windowTraits->display);
@@ -303,7 +341,12 @@ int main(int argc, char** argv)
     bool colours = arguments.read({"-c", "--colors"});
     bool normals = arguments.read("--normals");
 
-    auto scene = create(position, size, numPoints, normals, colours, options);
+    auto viewportData = vsg::vec4Value::create(0.0f, 0.0f, 1920.0f, 1080.0f);
+#if (VSG_VERSION_MAJOR >= 1) || (VSG_VERSION_MINOR >= 6) || ((VSG_VERSION_MINOR == 5) && (VSG_VERSION_PATCH >= 7))
+    viewportData->getLayout().dynamic = true;
+#endif
+
+    auto scene = create(viewportData, position, size, numPoints, normals, colours, options);
 
     if (!scene)
     {
@@ -331,11 +374,17 @@ int main(int argc, char** argv)
     viewer->addWindow(window);
 
     // compute the bounds of the scene graph to help position camera
+#if 0
     vsg::ComputeBounds computeBounds;
     scene->accept(computeBounds);
     vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
     double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6 * 3.0;
+#endif
 
+    vsg::dvec3 centre = position + size * 0.5;
+    double radius = vsg::length(size)*0.5;
+
+    std::cout << "window size windowTraits width= " << windowTraits->width << ", "<<windowTraits->height<<std::endl;
     std::cout << "centre = " << centre << std::endl;
     std::cout << "radius = " << radius << std::endl;
 
@@ -347,9 +396,6 @@ int main(int argc, char** argv)
 
     auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
 
-    // set up the compilation support in builder to allow us to interactively create and compile subgraphs from within the IntersectionHandler
-    // builder->setup(window, camera->viewportState);
-
     // add close handler to respond the close window button and pressing escape
     viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
@@ -357,6 +403,9 @@ int main(int argc, char** argv)
 
     auto commandGraph = vsg::createCommandGraphForView(window, camera, scene);
     viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
+
+    auto& viewport = camera->viewportState->getViewport();
+    viewportData->value().set(viewport.x, viewport.y, viewport.width, viewport.height);
 
     viewer->compile();
 
@@ -370,6 +419,12 @@ int main(int argc, char** argv)
         viewer->handleEvents();
 
         viewer->update();
+
+        if (viewportData->value()[2] != viewport.width || viewportData->value()[3] != viewport.height)
+        {
+            viewportData->value().set(viewport.x, viewport.y, viewport.width, viewport.height);
+            viewportData->dirty();
+        }
 
         viewer->recordAndSubmit();
 
