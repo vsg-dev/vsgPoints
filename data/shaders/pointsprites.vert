@@ -1,6 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
-
+#pragma import_defines (VSG_POSITION_SCALE)
 
 layout(push_constant) uniform PushConstants {
     mat4 projection;
@@ -12,6 +12,9 @@ layout(location = 0) in vec3 vsg_Vertex;
 layout(location = 1) in vec3 vsg_Normal;
 layout(location = 2) in vec4 vsg_Color;
 
+#ifdef VSG_POSITION_SCALE
+layout(location = 3) in vec4 vsg_PositionScale;
+#endif
 
 layout(location = 0) out vec3 eyePos;
 layout(location = 1) out vec3 normalDir;
@@ -40,7 +43,13 @@ out gl_PerVertex{
 
 void main()
 {
-    vec4 vertex = vec4(vsg_Vertex, 1.0) /** vec4(256, 256, 256, 1)*/;
+
+    #ifdef VSG_POSITION_SCALE
+    vec4 vertex = vec4(vsg_PositionScale.xyz + vsg_Vertex * vsg_PositionScale.w, 1.0);
+    #else
+    vec4 vertex = vec4(vsg_Vertex, 1.0);
+    #endif
+
     vec4 normal = vec4(vsg_Normal, 0.0);
 
     gl_Position = (pc.projection * pc.modelView) * vertex;

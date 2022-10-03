@@ -85,6 +85,7 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
 
     // enable the point sprite code paths
     defines.push_back("VSG_POINT_SPRITE");
+    defines.push_back("VSG_POSITION_SCALE");
 
     vsg::ref_ptr<vsg::Data> textureData;
 #if 0
@@ -140,6 +141,9 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
 
     vertexBindingsDescriptions.push_back(VkVertexInputBindingDescription{2, 4, colorInputRate});                 // color data
     vertexAttributeDescriptions.push_back(VkVertexInputAttributeDescription{2, 2, VK_FORMAT_R8G8B8A8_UNORM, 0}); // color data
+
+    vertexBindingsDescriptions.push_back(VkVertexInputBindingDescription{3, sizeof(vsg::vec4), VK_VERTEX_INPUT_RATE_INSTANCE});  // position and scale data
+    vertexAttributeDescriptions.push_back(VkVertexInputAttributeDescription{3, 3, VK_FORMAT_R32G32B32A32_SFLOAT, 0}); // position and scale data
 
     auto rasterState = vsg::RasterizationState::create();
 
@@ -203,6 +207,7 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
 
 vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg::dvec3& position, const vsg::dvec3& size, size_t numPoints, bool perVertexNormals, bool perVertexColors, vsg::ref_ptr<const vsg::Options> options)
 {
+    bool usePositionScale = true;
     bool lighting = perVertexNormals;
     VkVertexInputRate normalInputRate = perVertexNormals ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
     VkVertexInputRate colorInputRate = perVertexColors ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
@@ -222,6 +227,14 @@ vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg:
 
     auto colors = vsg::ubvec4Array::create(perVertexColors ? numPoints : 1);
     arrays.push_back(colors);
+
+    vsg::vec4 positionScale(0.0f, 0.0f, 0.0f, 1.0f);
+    if (usePositionScale)
+    {
+        auto maxSize = std::max(std::max(size.x, size.y), size.z);
+        positionScale.set(position.x, position.y, position.z, maxSize);
+        arrays.push_back(vsg::vec4Value::create(positionScale));
+    }
 
     double area = size.x * size.y;
     double areaPerPoint = area / static_cast<double>(numPoints);
@@ -262,10 +275,17 @@ vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg:
         for(size_t c = 0; (c < numColumns) && (vi < numPoints); ++c)
         {
             auto [vert, norm, col] = computePoint(c, r);
+            if (usePositionScale)
+            {
+                vert.x = (vert.x - positionScale.x) / positionScale.w;
+                vert.y = (vert.y - positionScale.y) / positionScale.w;
+                vert.z = (vert.z - positionScale.z) / positionScale.w;
+            }
+
 #if VERTEX_TYPE==4
             vertices->set(vi, vert);
 #else
-            vertices->set(vi, vsg::ubvec4(static_cast<uint8_t>(vert.x), static_cast<uint8_t>(vert.y), 128/*static_cast<uint8_t>(vert.z)*/, 0));
+            vertices->set(vi, vsg::ubvec4(static_cast<uint8_t>(vert.x*255.0f), static_cast<uint8_t>(vert.y*255.0f), static_cast<uint8_t>(vert.z*255.0f), 0));
 #endif
             if (perVertexNormals) normals->set(vi, norm);
             if (perVertexColors) colors->set(vi, col);
