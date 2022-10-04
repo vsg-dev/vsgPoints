@@ -1,5 +1,6 @@
 set(SOURCES
     vsggeneratepoints.cpp
+    BrickBuilder.cpp
 )
 
 add_executable(vsggeneratepoints ${SOURCES})
