@@ -1,4 +1,5 @@
 #include "BrickBuilder.h"
+
 #include <vsg/io/Logger.h>
 #include <vsg/all.h>
 #include <iostream>
@@ -78,175 +79,75 @@ vsg::ref_ptr<vsg::Data> vsgPoints::createParticleImage(uint32_t dim)
     return data;
 }
 
-vsg::ref_ptr<vsg::StateGroup> vsgPoints::createStateGroup(vsg::ref_ptr<const vsg::Options> options, vsg::ref_ptr<vsg::vec4Value> viewport, vsg::ref_ptr<vsg::vec2Value> pointSize, bool lighting, VkVertexInputRate normalInputRate, VkVertexInputRate colorInputRate)
+
+vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsFlatShadedShaderSet(vsg::ref_ptr<const vsg::Options> options)
 {
-    bool blending = false;
-
-    for (auto& path : options->paths)
+    if (options)
     {
-        std::cout << "path = " << path << std::endl;
+        // check if a ShaderSet has already been assigned to the options object, if so return it
+        if (auto itr = options->shaderSets.find("points_flat"); itr != options->shaderSets.end()) return itr->second;
     }
 
-    // load shaders
     auto vertexShader = vsg::read_cast<vsg::ShaderStage>("shaders/brick.vert", options);
-    //if (!vertexShader) vertexShader = assimp_vert(); // fallback to shaders/assimp_vert.cpp
+    //  TODO : if (!vertexShader) vertexShader = assimp_vert(); // fallback to shaders/assimp_vert.cpp
 
-    vsg::ref_ptr<vsg::ShaderStage> fragmentShader;
-    if (lighting)
+    auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp_flat_shaded.frag", options);
+    //  TODO : if (!fragmentShader) fragmentShader = assimp_flat_shaded_frag();
+
+    auto shaderSet = vsg::ShaderSet::create(vsg::ShaderStages{vertexShader, fragmentShader});
+
+    shaderSet->addAttributeBinding("vsg_Vertex", "", 0, VK_FORMAT_R32G32B32_SFLOAT, vsg::vec3Array::create(1));
+    shaderSet->addAttributeBinding("vsg_Normal", "", 1, VK_FORMAT_R32G32B32_SFLOAT, vsg::vec3Array::create(1));
+    shaderSet->addAttributeBinding("vsg_Color", "", 2, VK_FORMAT_R8G8B8A8_UNORM, vsg::vec4Array::create(1));
+    shaderSet->addAttributeBinding("vsg_PositionScale", "VSG_POSITION_SCALE", 3, VK_FORMAT_R32G32B32A32_SFLOAT, vsg::vec4Value::create(vsg::vec4(0.0f, 0.0f, 0.0, 1.0f)));
+
+    shaderSet->addUniformBinding("displacementMap", "VSG_DISPLACEMENT_MAP", 0, 6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, vsg::vec4Array2D::create(1, 1));
+    shaderSet->addUniformBinding("diffuseMap", "VSG_DIFFUSE_MAP", 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec4Array2D::create(1, 1));
+    shaderSet->addUniformBinding("material", "", 0, 10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::PhongMaterialValue::create());
+    shaderSet->addUniformBinding("viewport", "", 0, 8, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, vsg::vec4Value::create());
+    shaderSet->addUniformBinding("pointSize", "", 0, 9, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, vsg::vec2Value::create());
+
+    shaderSet->addPushConstantRange("pc", "", VK_SHADER_STAGE_VERTEX_BIT, 0, 128);
+
+    shaderSet->optionalDefines = {"VSG_POINT_SPRITE", "VSG_GREYSACLE_DIFFUSE_MAP"};
+
+    return shaderSet;
+}
+
+vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsPhongShaderSet(vsg::ref_ptr<const vsg::Options> options)
+{
+    if (options)
     {
-        fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp_phong.frag", options);
-        //if (!fragmentShader) fragmentShader = assimp_phong_frag();
-    }
-    else
-    {
-        fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp_flat_shaded.frag", options);
-        //if (!fragmentShader) fragmentShader = assimp_flat_shaded_frag();
-    }
-
-    if (!vertexShader || !fragmentShader)
-    {
-        std::cout << "Could not create shaders." << std::endl;
-        std::cout << "vertexShader = " << vertexShader << std::endl;
-        std::cout << "fragmentShader = " << fragmentShader << std::endl;
-
-        return {};
-    }
-
-    vsg::info("vertexShader = ", vertexShader);
-    vsg::info("fragmentShader = ", fragmentShader);
-
-    auto shaderHints = vsg::ShaderCompileSettings::create();
-    auto& defines = shaderHints->defines;
-
-    vertexShader->module->hints = shaderHints;
-    vertexShader->module->code = {};
-
-    fragmentShader->module->hints = shaderHints;
-    fragmentShader->module->code = {};
-
-    // set up graphics pipeline
-    vsg::DescriptorSetLayoutBindings descriptorBindings;
-
-    // enable the point sprite code paths
-    defines.push_back("VSG_POINT_SPRITE");
-    defines.push_back("VSG_POSITION_SCALE");
-
-    vsg::ref_ptr<vsg::Data> textureData;
-#if 0
-    textureData = vsg::read_cast<vsg::Data>("textures/lz.vsgb", options);
-#else
-    textureData = createParticleImage(64);
-#endif
-    if (textureData)
-    {
-        std::cout << "textureData = " << textureData << std::endl;
-
-        // { binding, descriptorTpe, descriptorCount, stageFlags, pImmutableSamplers}
-        descriptorBindings.push_back(VkDescriptorSetLayoutBinding{0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr});
-        defines.push_back("VSG_DIFFUSE_MAP");
+        // check if a ShaderSet has already been assigned to the options object, if so return it
+        if (auto itr = options->shaderSets.find("points_phong"); itr != options->shaderSets.end()) return itr->second;
     }
 
-    {
-        descriptorBindings.push_back(VkDescriptorSetLayoutBinding{8, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr}); // Viewport
-        descriptorBindings.push_back(VkDescriptorSetLayoutBinding{9, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr}); // PointSize
-        descriptorBindings.push_back(VkDescriptorSetLayoutBinding{10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}); // Material
-    }
+    auto vertexShader = vsg::read_cast<vsg::ShaderStage>("shaders/brick.vert", options);
+    //  TODO : if (!vertexShader) vertexShader = assimp_vert(); // fallback to shaders/assimp_vert.cpp
+    auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp_phong.frag", options);
+    //  TODO : if (!fragmentShader) fragmentShader = assimp_phong_frag();
 
-    auto descriptorSetLayout = vsg::DescriptorSetLayout::create(descriptorBindings);
+    auto shaderSet = vsg::ShaderSet::create(vsg::ShaderStages{vertexShader, fragmentShader});
 
-    vsg::DescriptorSetLayouts descriptorSetLayouts{descriptorSetLayout};
+    shaderSet->addAttributeBinding("vsg_Vertex", "", 0, VK_FORMAT_R32G32B32_SFLOAT, vsg::vec3Array::create(1));
+    shaderSet->addAttributeBinding("vsg_Normal", "", 1, VK_FORMAT_R32G32B32_SFLOAT, vsg::vec3Array::create(1));
+    shaderSet->addAttributeBinding("vsg_Color", "", 2, VK_FORMAT_R8G8B8A8_UNORM, vsg::vec4Array::create(1));
+    shaderSet->addAttributeBinding("vsg_PositionScale", "VSG_POSITION_SCALE", 3, VK_FORMAT_R32G32B32A32_SFLOAT, vsg::vec4Value::create(vsg::vec4(0.0f, 0.0f, 0.0, 1.0f)));
 
-    if (lighting)
-    {
-        auto viewDescriptorSetLayout = vsg::ViewDescriptorSetLayout::create();
-        descriptorSetLayouts.push_back(viewDescriptorSetLayout);
-    }
+    shaderSet->addUniformBinding("diffuseMap", "VSG_DIFFUSE_MAP", 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec4Array2D::create(1, 1));
+    shaderSet->addUniformBinding("normalMap", "VSG_NORMAL_MAP", 0, 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec3Array2D::create(1, 1));
+    shaderSet->addUniformBinding("aoMap", "VSG_LIGHTMAP_MAP", 0, 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec4Array2D::create(1, 1));
+    shaderSet->addUniformBinding("emissiveMap", "VSG_EMISSIVE_MAP", 0, 4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec4Array2D::create(1, 1));
+    shaderSet->addUniformBinding("material", "", 0, 10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::PhongMaterialValue::create());
+    shaderSet->addUniformBinding("lightData", "", 1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec4Array::create(64));
+    shaderSet->addUniformBinding("viewport", "", 0, 8, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, vsg::vec4Value::create());
+    shaderSet->addUniformBinding("pointSize", "", 0, 9, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT, vsg::vec2Value::create());
 
-    vsg::PushConstantRanges pushConstantRanges{
-        {VK_SHADER_STAGE_VERTEX_BIT, 0, 128} // projection view, and model matrices, actual push constant calls automatically provided by the VSG's DispatchTraversal
-    };
+    shaderSet->addPushConstantRange("pc", "", VK_SHADER_STAGE_VERTEX_BIT, 0, 128);
 
-    auto pipelineLayout = vsg::PipelineLayout::create(descriptorSetLayouts, pushConstantRanges);
+    shaderSet->optionalDefines = {"VSG_GREYSACLE_DIFFUSE_MAP", "VSG_TWO_SIDED_LIGHTING", "VSG_POINT_SPRITE"};
 
-    vsg::VertexInputState::Bindings vertexBindingsDescriptions{
-        VkVertexInputBindingDescription{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX} // vertex data
-    };
-
-    vsg::VertexInputState::Attributes vertexAttributeDescriptions{
-#if VERTEX_TYPE==4
-        VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0} // vertex data
-#else
-        VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R8G8B8A8_UNORM, 0} // vertex data
-#endif
-    };
-
-    vertexBindingsDescriptions.push_back(VkVertexInputBindingDescription{1, sizeof(vsg::vec3), normalInputRate});  // normal data
-    vertexAttributeDescriptions.push_back(VkVertexInputAttributeDescription{1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0}); // normal data
-
-    vertexBindingsDescriptions.push_back(VkVertexInputBindingDescription{2, 4, colorInputRate});                 // color data
-    vertexAttributeDescriptions.push_back(VkVertexInputAttributeDescription{2, 2, VK_FORMAT_R8G8B8A8_UNORM, 0}); // color data
-
-    vertexBindingsDescriptions.push_back(VkVertexInputBindingDescription{3, sizeof(vsg::vec4), VK_VERTEX_INPUT_RATE_INSTANCE});  // position and scale data
-    vertexAttributeDescriptions.push_back(VkVertexInputAttributeDescription{3, 3, VK_FORMAT_R32G32B32A32_SFLOAT, 0}); // position and scale data
-
-    auto rasterState = vsg::RasterizationState::create();
-
-    auto colorBlendState = vsg::ColorBlendState::create();
-    colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
-        {blending, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
-
-    auto inputAssemblyState = vsg::InputAssemblyState::create();
-    inputAssemblyState->topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-
-    vsg::GraphicsPipelineStates pipelineStates{
-        vsg::VertexInputState::create(vertexBindingsDescriptions, vertexAttributeDescriptions),
-        inputAssemblyState,
-        rasterState,
-        vsg::MultisampleState::create(),
-        colorBlendState,
-        vsg::DepthStencilState::create()};
-
-    auto graphicsPipeline = vsg::GraphicsPipeline::create(pipelineLayout, vsg::ShaderStages{vertexShader, fragmentShader}, pipelineStates);
-
-    auto bindGraphicsPipeline = vsg::BindGraphicsPipeline::create(graphicsPipeline);
-
-    // create texture image and associated DescriptorSets and binding
-
-    vsg::Descriptors descriptors;
-    if (textureData)
-    {
-        auto sampler = vsg::Sampler::create();
-        sampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-
-        auto texture = vsg::DescriptorImage::create(sampler, textureData, 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        descriptors.push_back(texture);
-    }
-
-    descriptors.push_back( vsg::DescriptorBuffer::create(viewport, 8) );
-    descriptors.push_back( vsg::DescriptorBuffer::create(pointSize, 9) );
-
-    auto mat = vsg::PhongMaterialValue::create();
-    mat->value().alphaMask = 1.0f;
-    mat->value().alphaMaskCutoff = 0.0025f;
-
-    auto material = vsg::DescriptorBuffer::create(mat, 10);
-    descriptors.push_back(material);
-
-
-    auto descriptorSet = vsg::DescriptorSet::create(descriptorSetLayout, descriptors);
-    auto bindDescriptorSets = vsg::BindDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, vsg::DescriptorSets{descriptorSet});
-
-    auto sg = vsg::StateGroup::create();
-    sg->add(bindGraphicsPipeline);
-    sg->add(bindDescriptorSets);
-
-    if (lighting)
-    {
-        sg->add(vsg::BindViewDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1));
-    }
-
-    return sg;
+    return shaderSet;
 }
 
 void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec3Array> normals, vsg::ref_ptr<vsg::ubvec4Array> colors)
@@ -340,11 +241,60 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
     auto pointSize = vsg::vec2Value::create();
     pointSize->value().set(min_spacing*3.0f, min_spacing);
 
-    bool lighting = perVertexNormals;
-    VkVertexInputRate normalInputRate = perVertexNormals ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
-    VkVertexInputRate colorInputRate = perVertexColors ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
 
-    auto sg = vsgPoints::createStateGroup(options, viewport, pointSize, lighting, normalInputRate, colorInputRate);
+    auto textureData = createParticleImage(64);
+    auto shaderSet = perVertexNormals ? vsgPoints::createPointsPhongShaderSet(options) : vsgPoints::createPointsFlatShadedShaderSet(options);
+    auto config = vsg::GraphicsPipelineConfig::create(shaderSet);
+    bool blending = false;
+
+    auto& defines = config->shaderHints->defines;
+    defines.push_back("VSG_POINT_SPRITE");
+
+    config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::vec3));
+    config->enableArray("vsg_Normal", perVertexNormals ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec3));
+    config->enableArray("vsg_Color", perVertexColors ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::ubvec4));
+    config->enableArray("vsg_PositionScale", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec4));
+
+    vsg::Descriptors descriptors;
+    if (textureData)
+    {
+        auto sampler = vsg::Sampler::create();
+        sampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        config->assignTexture(descriptors, "diffuseMap", textureData, sampler);
+    }
+
+    config->assignUniform(descriptors, "viewport", viewport);
+    config->assignUniform(descriptors, "pointSize", pointSize);
+
+    auto mat = vsg::PhongMaterialValue::create();
+    mat->value().alphaMask = 1.0f;
+    mat->value().alphaMaskCutoff = 0.0025f;
+    config->assignUniform(descriptors, "material", mat);
+
+    auto vdsl = vsg::ViewDescriptorSetLayout::create();
+    config->additionalDescrptorSetLayout = vdsl;
+
+    config->colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
+        {blending, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
+
+    config->inputAssemblyState->topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+
+    config->init();
+
+    auto descriptorSet = vsg::DescriptorSet::create(config->descriptorSetLayout, descriptors);
+    auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, config->layout, 0, descriptorSet);
+
+    // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
+    auto stateGroup = vsg::StateGroup::create();
+    stateGroup->add(config->bindGraphicsPipeline);
+    stateGroup->add(bindDescriptorSet);
+
+    // assign any custom ArrayState that may be required.
+    stateGroup->prototypeArrayState = shaderSet->getSuitableArrayState(config->shaderHints->defines);
+
+    auto bindViewDescriptorSets = vsg::BindViewDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, config->layout, 1);
+    stateGroup->add(bindViewDescriptorSets);
 
     for(auto& brick : activeBricks)
     {
@@ -363,10 +313,10 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
         commands->addChild(bindVertexBuffers);
         commands->addChild(vsg::Draw::create(brick->vertices->size(), 1, 0, 0));
 
-        sg->addChild(commands);
+        stateGroup->addChild(commands);
     }
 
-    root = sg;
+    root = stateGroup;
 
     vsg::info("activeBricks = ", activeBricks.size(), ", bricks.size() = ", bricks.size());
 }

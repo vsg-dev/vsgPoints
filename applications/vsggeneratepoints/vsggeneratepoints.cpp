@@ -8,18 +8,15 @@
 
 #include "BrickBuilder.h"
 
-
+#define LOCAL_VERTEX_TYPE 4
 
 vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg::dvec3& position, const vsg::dvec3& size, size_t numPoints, bool useBrickBuilder, bool perVertexNormals, bool perVertexColors, vsg::ref_ptr<const vsg::Options> options)
 {
     bool usePositionScale = false;
-    bool lighting = perVertexNormals;
-    VkVertexInputRate normalInputRate = perVertexNormals ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
-    VkVertexInputRate colorInputRate = perVertexColors ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
 
     vsg::DataList arrays;
 
-#if VERTEX_TYPE==4
+#if LOCAL_VERTEX_TYPE==4
     auto vertices = vsg::vec3Array::create(numPoints);
 #else
     auto vertices = vsg::ubvec4Array::create(numPoints);
@@ -92,7 +89,7 @@ vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg:
                 vert.z = (vert.z - positionScale.z) / positionScale.w;
             }
 
-#if VERTEX_TYPE==4
+#if LOCAL_VERTEX_TYPE==4
             vertices->set(vi, vert);
 #else
             vertices->set(vi, vsg::ubvec4(static_cast<uint8_t>(vert.x*255.0f), static_cast<uint8_t>(vert.y*255.0f), static_cast<uint8_t>(vert.z*255.0f), 0));
@@ -131,13 +128,66 @@ vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg:
     commands->addChild(bindVertexBuffers);
     commands->addChild(vsg::Draw::create(vertices->size(), 1, 0, 0));
 
-    auto sg = vsgPoints::createStateGroup(options, viewport, pointSize, lighting, normalInputRate, colorInputRate);
 
-    if (!sg) return commands;
+    auto textureData = vsgPoints::createParticleImage(64);
+    auto shaderSet = perVertexNormals ? vsgPoints::createPointsPhongShaderSet(options) : vsgPoints::createPointsFlatShadedShaderSet(options);
+    auto config = vsg::GraphicsPipelineConfig::create(shaderSet);
+    bool blending = false;
 
-    sg->addChild(commands);
+    auto& defines = config->shaderHints->defines;
+    defines.push_back("VSG_POINT_SPRITE");
 
-    return sg;
+    config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::vec3));
+    config->enableArray("vsg_Normal", perVertexNormals ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec3));
+    config->enableArray("vsg_Color", perVertexColors ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::ubvec4));
+    config->enableArray("vsg_PositionScale", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec4));
+
+    vsg::Descriptors descriptors;
+    if (textureData)
+    {
+        auto sampler = vsg::Sampler::create();
+        sampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        config->assignTexture(descriptors, "diffuseMap", textureData, sampler);
+    }
+
+    config->assignUniform(descriptors, "viewport", viewport);
+    config->assignUniform(descriptors, "pointSize", pointSize);
+
+    auto mat = vsg::PhongMaterialValue::create();
+    mat->value().alphaMask = 1.0f;
+    mat->value().alphaMaskCutoff = 0.0025f;
+    config->assignUniform(descriptors, "material", mat);
+
+    auto vdsl = vsg::ViewDescriptorSetLayout::create();
+    config->additionalDescrptorSetLayout = vdsl;
+
+    config->colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
+        {blending, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
+
+    config->inputAssemblyState->topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+
+    config->init();
+
+    auto descriptorSet = vsg::DescriptorSet::create(config->descriptorSetLayout, descriptors);
+    auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, config->layout, 0, descriptorSet);
+
+    // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
+    auto stateGroup = vsg::StateGroup::create();
+    stateGroup->add(config->bindGraphicsPipeline);
+    stateGroup->add(bindDescriptorSet);
+
+    // assign any custom ArrayState that may be required.
+    stateGroup->prototypeArrayState = shaderSet->getSuitableArrayState(config->shaderHints->defines);
+
+    auto bindViewDescriptorSets = vsg::BindViewDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, config->layout, 1);
+    stateGroup->add(bindViewDescriptorSets);
+
+    if (!stateGroup) return commands;
+
+    stateGroup->addChild(commands);
+
+    return stateGroup;
 }
 
 int main(int argc, char** argv)

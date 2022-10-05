@@ -2,6 +2,7 @@
 
 #include <vsg/core/Inherit.h>
 #include <vsg/nodes/Node.h>
+#include <vsg/utils/ShaderSet.h>
 
 namespace vsgPoints
 {
@@ -9,7 +10,8 @@ namespace vsgPoints
 
     extern vsg::ref_ptr<vsg::Data> createParticleImage(uint32_t dim);
 
-    extern vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> options, vsg::ref_ptr<vsg::vec4Value> viewport, vsg::ref_ptr<vsg::vec2Value> pointSize, bool lighting, VkVertexInputRate normalInputRate, VkVertexInputRate colorInputRate);
+    extern vsg::ref_ptr<vsg::ShaderSet> createPointsFlatShadedShaderSet(vsg::ref_ptr<const vsg::Options> options);
+    extern vsg::ref_ptr<vsg::ShaderSet> createPointsPhongShaderSet(vsg::ref_ptr<const vsg::Options> options);
 
     class BrickBuilder : public vsg::Inherit<vsg::Object, BrickBuilder>
     {
