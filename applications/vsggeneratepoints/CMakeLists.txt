@@ -1,11 +1,10 @@
 set(SOURCES
     vsggeneratepoints.cpp
-    BrickBuilder.cpp
 )
 
 add_executable(vsggeneratepoints ${SOURCES})
 
-target_link_libraries(vsggeneratepoints vsg::vsg)
+target_link_libraries(vsggeneratepoints vsg::vsg vsgPoints::vsgPoints)
 
 if (vsgXchange_FOUND)
     target_compile_definitions(vsggeneratepoints PRIVATE vsgXchange_FOUND)

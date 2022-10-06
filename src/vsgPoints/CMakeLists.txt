@@ -7,12 +7,15 @@ SET(HEADER_PATH ${CMAKE_SOURCE_DIR}/include/vsgPoints)
 
 set(HEADERS
     ${HEADER_PATH}/Export.h
+    ${HEADER_PATH}/BrickBuilder.h
  )
 
 set(SOURCES
+    BrickBuilder.cpp
 )
 
 add_library(vsgPoints ${HEADERS} ${SOURCES})
+add_library(vsgPoints::vsgPoints ALIAS vsgPoints)
 
 set_property(TARGET vsgPoints PROPERTY VERSION ${VSGPOINTS_VERSION_MAJOR}.${VSGPOINTS_VERSION_MINOR}.${VSGPOINTS_VERSION_PATCH})
 set_property(TARGET vsgPoints PROPERTY SOVERSION ${VSGPOINTS_SOVERSION})

@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-#include "BrickBuilder.h"
+#include <vsgPoints/BrickBuilder.h>
 
 #define LOCAL_VERTEX_TYPE 4
 
