@@ -8,6 +8,48 @@ using namespace vsgPoints;
 
 namespace vsgPoints
 {
+
+struct SetArray : public vsg::Object
+{
+    virtual void setVertex(size_t i, const vsg::vec3& v) = 0;
+    virtual void setNormal(size_t i, const vsg::vec3& n) = 0;
+    virtual void setColor(size_t i, const vsg::ubvec4& c) = 0;
+};
+
+struct SetArray_vec3Array : public vsg::Inherit<SetArray, SetArray_vec3Array>
+{
+    SetArray_vec3Array(vsg::ref_ptr<vsg::vec3Array> in_array) : array(in_array) {}
+
+    vsg::ref_ptr<vsg::vec3Array> array;
+
+    vsg::vec3 convert(const vsg::ubvec4& v)
+    {
+        const float multiplier = 1.0f/255.0f;
+        return vsg::vec3(static_cast<float>(v.x)*multiplier, static_cast<float>(v.y)*multiplier, static_cast<float>(v.z)*multiplier);
+    }
+
+    virtual void setVertex(size_t i, const vsg::vec3& v) { array->set(i, v); }
+    virtual void setNormal(size_t i, const vsg::vec3& n) { array->set(i, n); }
+    virtual void setColor(size_t i, const vsg::ubvec4& c) { array->set(i, convert(c)); }
+};
+
+struct SetArray_ubvec4Array : public vsg::Inherit<SetArray, SetArray_ubvec4Array>
+{
+    SetArray_ubvec4Array(vsg::ref_ptr<vsg::ubvec4Array> in_array) : array(in_array) {}
+
+    vsg::ref_ptr<vsg::ubvec4Array> array;
+
+    vsg::ubvec4 convert(const vsg::vec3& v)
+    {
+        const float multiplier = 255.0f;
+        return vsg::ubvec4(static_cast<std::uint8_t>(v.x * multiplier), static_cast<std::uint8_t>(v.y * multiplier), static_cast<std::uint8_t>(v.z * multiplier), 0);
+    }
+
+    virtual void setVertex(size_t i, const vsg::vec3& v) { array->set(i, convert(v)); }
+    virtual void setNormal(size_t i, const vsg::vec3& n) { array->set(i, convert(n)); }
+    virtual void setColor(size_t i, const vsg::ubvec4& c) { array->set(i, c); }
+};
+
 struct Brick : public vsg::Inherit<vsg::Object, Brick>
 {
     Brick(const vsg::dvec3& in_position, double brickSize, size_t num, vsg::ref_ptr<vsg::vec3Array> shared_normals, vsg::ref_ptr<vsg::ubvec4Array> shared_colors) :
@@ -23,22 +65,26 @@ struct Brick : public vsg::Inherit<vsg::Object, Brick>
 
         if (!normals) normals = vsg::vec3Array::create(num);
         if (!colors) colors = vsg::ubvec4Array::create(num);
+
+        set_vertices = SetArray_vec3Array::create(vertices);
+        set_normals = SetArray_vec3Array::create(normals);
+        set_colors = SetArray_ubvec4Array::create(colors);
     }
 
     virtual void setVertex(size_t i, const vsg::vec3& vertex)
     {
         auto v = (vertex - position) * multiplier;
-        vertices->set(i, v);
+        set_vertices->setVertex(i, v);
     }
 
     virtual void setNormal(size_t i, const vsg::vec3& norm)
     {
-        normals->set(i, norm);
+        set_normals->setNormal(i, norm);
     }
 
     virtual void setColor(size_t i, const vsg::ubvec4& color)
     {
-        colors->set(i, color);
+        set_colors->setColor(i, color);
     }
 
     size_t end_index;
@@ -48,6 +94,10 @@ struct Brick : public vsg::Inherit<vsg::Object, Brick>
     vsg::ref_ptr<vsg::vec3Array> vertices;
     vsg::ref_ptr<vsg::vec3Array> normals;
     vsg::ref_ptr<vsg::ubvec4Array> colors;
+
+    vsg::ref_ptr<SetArray> set_vertices;
+    vsg::ref_ptr<SetArray> set_normals;
+    vsg::ref_ptr<SetArray> set_colors;
 };
 }
 
