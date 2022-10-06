@@ -11,6 +11,7 @@ namespace vsgPoints
 
 struct SetArray : public vsg::Object
 {
+    virtual vsg::ref_ptr<vsg::Data> data() = 0;
     virtual void setVertex(size_t i, const vsg::vec3& v) = 0;
     virtual void setNormal(size_t i, const vsg::vec3& n) = 0;
     virtual void setColor(size_t i, const vsg::ubvec4& c) = 0;
@@ -18,7 +19,7 @@ struct SetArray : public vsg::Object
 
 struct SetArray_vec3Array : public vsg::Inherit<SetArray, SetArray_vec3Array>
 {
-    SetArray_vec3Array(vsg::ref_ptr<vsg::vec3Array> in_array) : array(in_array) {}
+    SetArray_vec3Array(vsg::ref_ptr<vsg::vec3Array> in_array, VkFormat format = VK_FORMAT_R32G32B32_SFLOAT) : array(in_array) { array->getLayout().format = format; }
 
     vsg::ref_ptr<vsg::vec3Array> array;
 
@@ -28,26 +29,36 @@ struct SetArray_vec3Array : public vsg::Inherit<SetArray, SetArray_vec3Array>
         return vsg::vec3(static_cast<float>(v.x)*multiplier, static_cast<float>(v.y)*multiplier, static_cast<float>(v.z)*multiplier);
     }
 
-    virtual void setVertex(size_t i, const vsg::vec3& v) { array->set(i, v); }
-    virtual void setNormal(size_t i, const vsg::vec3& n) { array->set(i, n); }
-    virtual void setColor(size_t i, const vsg::ubvec4& c) { array->set(i, convert(c)); }
+    vsg::ref_ptr<vsg::Data> data() override { return array; }
+    void setVertex(size_t i, const vsg::vec3& v) override { array->set(i, v); }
+    void setNormal(size_t i, const vsg::vec3& n) override { array->set(i, n); }
+    void setColor(size_t i, const vsg::ubvec4& c) override { array->set(i, convert(c)); }
 };
 
 struct SetArray_ubvec4Array : public vsg::Inherit<SetArray, SetArray_ubvec4Array>
 {
-    SetArray_ubvec4Array(vsg::ref_ptr<vsg::ubvec4Array> in_array) : array(in_array) {}
+    SetArray_ubvec4Array(vsg::ref_ptr<vsg::ubvec4Array> in_array, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM) : array(in_array) { array->getLayout().format = format; }
 
     vsg::ref_ptr<vsg::ubvec4Array> array;
 
-    vsg::ubvec4 convert(const vsg::vec3& v)
+    uint8_t convert(float v) const
     {
         const float multiplier = 255.0f;
-        return vsg::ubvec4(static_cast<std::uint8_t>(v.x * multiplier), static_cast<std::uint8_t>(v.y * multiplier), static_cast<std::uint8_t>(v.z * multiplier), 0);
+        v *= multiplier;
+        if (v <= 0.0f) return static_cast<uint8_t>(0);
+        if (v >= multiplier) return static_cast<uint8_t>(255);
+        return static_cast<uint8_t>(v);
     }
 
-    virtual void setVertex(size_t i, const vsg::vec3& v) { array->set(i, convert(v)); }
-    virtual void setNormal(size_t i, const vsg::vec3& n) { array->set(i, convert(n)); }
-    virtual void setColor(size_t i, const vsg::ubvec4& c) { array->set(i, c); }
+    vsg::ubvec4 convert(const vsg::vec3& v) const
+    {
+        return vsg::ubvec4(convert(v.x), convert(v.y), convert(v.z), 0);
+    }
+
+    vsg::ref_ptr<vsg::Data> data() override { return array; }
+    void setVertex(size_t i, const vsg::vec3& v) override { array->set(i, convert(v)); }
+    void setNormal(size_t i, const vsg::vec3& n) override { array->set(i, convert(n)); }
+    void setColor(size_t i, const vsg::ubvec4& c) override { array->set(i, c); }
 };
 
 struct Brick : public vsg::Inherit<vsg::Object, Brick>
@@ -56,24 +67,35 @@ struct Brick : public vsg::Inherit<vsg::Object, Brick>
         end_index(0),
         position(in_position),
         multiplier(1.0f / brickSize),
-        positionScale(vsg::vec4Value::create(in_position.x, in_position.y, in_position.z, brickSize)),
-        vertices(vsg::vec3Array::create(num)),
-        normals(shared_normals),
-        colors(shared_colors)
+        positionScale(vsg::vec4Value::create(in_position.x, in_position.y, in_position.z, brickSize))
     {
-        vsg::info("Allocating Brick ", num, " position = ", position, ", brickSize = ", brickSize);
+        vsg::info("Allocating Brick ", num, " position = ", position, ", brickSize = ", brickSize, ", multiplier = ", multiplier);
 
-        if (!normals) normals = vsg::vec3Array::create(num);
-        if (!colors) colors = vsg::ubvec4Array::create(num);
+        //set_vertices = SetArray_vec3Array::create(vsg::vec3Array::create(num));
+        set_vertices = SetArray_ubvec4Array::create(vsg::ubvec4Array::create(num));
 
-        set_vertices = SetArray_vec3Array::create(vertices);
-        set_normals = SetArray_vec3Array::create(normals);
-        set_colors = SetArray_ubvec4Array::create(colors);
+        if (shared_normals) set_normals = SetArray_vec3Array::create(shared_normals);
+        else set_normals = SetArray_vec3Array::create(vsg::vec3Array::create(num));
+
+        if (shared_colors) set_colors = SetArray_ubvec4Array::create(shared_colors);
+        else set_colors = SetArray_ubvec4Array::create(vsg::ubvec4Array::create(num));
     }
+
+    vsg::ref_ptr<vsg::Data> vertices() { return set_vertices->data(); }
+    vsg::ref_ptr<vsg::Data> normals() { return set_normals->data(); }
+    vsg::ref_ptr<vsg::Data> colors() { return set_colors->data(); }
 
     virtual void setVertex(size_t i, const vsg::vec3& vertex)
     {
         auto v = (vertex - position) * multiplier;
+
+        if (v.x < 0.0f || v.x > 1.0f ||
+            v.y < 0.0f || v.y > 1.0f ||
+            v.z < 0.0f || v.z > 1.0f)
+        {
+            vsg::info("fail setVertex(", i, ", vertex = ", vertex, ", v = ", v);
+        }
+
         set_vertices->setVertex(i, v);
     }
 
@@ -91,9 +113,6 @@ struct Brick : public vsg::Inherit<vsg::Object, Brick>
     vsg::vec3 position;
     float multiplier;
     vsg::ref_ptr<vsg::vec4Value> positionScale;
-    vsg::ref_ptr<vsg::vec3Array> vertices;
-    vsg::ref_ptr<vsg::vec3Array> normals;
-    vsg::ref_ptr<vsg::ubvec4Array> colors;
 
     vsg::ref_ptr<SetArray> set_vertices;
     vsg::ref_ptr<SetArray> set_normals;
@@ -148,7 +167,7 @@ vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsFlatShadedShaderSet(vsg::ref
 
     shaderSet->addAttributeBinding("vsg_Vertex", "", 0, VK_FORMAT_R32G32B32_SFLOAT, vsg::vec3Array::create(1));
     shaderSet->addAttributeBinding("vsg_Normal", "", 1, VK_FORMAT_R32G32B32_SFLOAT, vsg::vec3Array::create(1));
-    shaderSet->addAttributeBinding("vsg_Color", "", 2, VK_FORMAT_R8G8B8A8_UNORM, vsg::vec4Array::create(1));
+    shaderSet->addAttributeBinding("vsg_Color", "", 2, VK_FORMAT_R8G8B8A8_UNORM, vsg::ubvec4Array::create(1));
     shaderSet->addAttributeBinding("vsg_PositionScale", "VSG_POSITION_SCALE", 3, VK_FORMAT_R32G32B32A32_SFLOAT, vsg::vec4Value::create(vsg::vec4(0.0f, 0.0f, 0.0, 1.0f)));
 
     shaderSet->addUniformBinding("displacementMap", "VSG_DISPLACEMENT_MAP", 0, 6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, vsg::vec4Array2D::create(1, 1));
@@ -181,7 +200,7 @@ vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsPhongShaderSet(vsg::ref_ptr<
 
     shaderSet->addAttributeBinding("vsg_Vertex", "", 0, VK_FORMAT_R32G32B32_SFLOAT, vsg::vec3Array::create(1));
     shaderSet->addAttributeBinding("vsg_Normal", "", 1, VK_FORMAT_R32G32B32_SFLOAT, vsg::vec3Array::create(1));
-    shaderSet->addAttributeBinding("vsg_Color", "", 2, VK_FORMAT_R8G8B8A8_UNORM, vsg::vec4Array::create(1));
+    shaderSet->addAttributeBinding("vsg_Color", "", 2, VK_FORMAT_R8G8B8A8_UNORM, vsg::ubvec4Array::create(1));
     shaderSet->addAttributeBinding("vsg_PositionScale", "VSG_POSITION_SCALE", 3, VK_FORMAT_R32G32B32A32_SFLOAT, vsg::vec4Value::create(vsg::vec4(0.0f, 0.0f, 0.0, 1.0f)));
 
     shaderSet->addUniformBinding("diffuseMap", "VSG_DIFFUSE_MAP", 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec4Array2D::create(1, 1));
@@ -247,11 +266,11 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
     size_t numBricks = 0;
     for(auto& vertex : *vertices)
     {
-        auto brick_position = (vsg::dvec3(vertex) - extents.min)/ brickSize;
+        auto brick_position = (vsg::dvec3(vertex) - extents.min) / brickSize;
         auto brick_i = std::floor(brick_position.x);
         auto brick_j = std::floor(brick_position.y);
         auto brick_k = std::floor(brick_position.z);
-        auto index = brick_i + brick_j * (num_y) + brick_k * (num_y * num_z);
+        auto index = brick_i + brick_j * (num_x) + brick_k * (num_x * num_y);
         if (pointsPerBrick[index]==0) ++numBricks; // first point in brick, so requires a Brick
         ++pointsPerBrick[index];
     }
@@ -270,15 +289,16 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
     for(size_t i = 0; i < vertices->size(); ++i)
     {
         auto& vertex = vertices->at(i);
-        auto brick_position = (vsg::dvec3(vertex) - extents.min)/ brickSize;
+        auto brick_position = (vsg::dvec3(vertex) - extents.min) / brickSize;
         auto brick_i = std::floor(brick_position.x);
         auto brick_j = std::floor(brick_position.y);
         auto brick_k = std::floor(brick_position.z);
-        auto index = brick_i + brick_j * (num_y) + brick_k * (num_y * num_z);
+        auto index = brick_i + brick_j * (num_x) + brick_k * (num_x * num_y);
         auto& brick = bricks[index];
         if (!brick)
         {
-            brick = Brick::create(brick_position, brickSize, pointsPerBrick[index], shared_normals, shared_colors);
+            auto brick_origin = extents.min + vsg::dvec3(brick_i * brickSize, brick_j * brickSize, brick_k * brickSize);
+            brick = Brick::create(brick_origin, brickSize, pointsPerBrick[index], shared_normals, shared_colors);
             activeBricks.push_back(brick);
         }
 
@@ -288,9 +308,11 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
         ++(brick->end_index);
     }
 
+    if (activeBricks.empty()) return;
+
+
     auto pointSize = vsg::vec2Value::create();
     pointSize->value().set(min_spacing*3.0f, min_spacing);
-
 
     auto textureData = createParticleImage(64);
     auto shaderSet = perVertexNormals ? vsgPoints::createPointsPhongShaderSet(options) : vsgPoints::createPointsFlatShadedShaderSet(options);
@@ -300,7 +322,12 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
     auto& defines = config->shaderHints->defines;
     defines.push_back("VSG_POINT_SPRITE");
 
-    config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::vec3));
+    auto first_brick = activeBricks.front();
+    auto first_vertices = first_brick->vertices();
+    config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, first_vertices->getLayout().stride, first_vertices->getLayout().format);
+    //config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::vec3), VK_FORMAT_R32G32B32_SFLOAT);
+    //config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::ubvec4), VK_FORMAT_R8G8B8A8_UNORM);
+
     config->enableArray("vsg_Normal", perVertexNormals ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec3));
     config->enableArray("vsg_Color", perVertexColors ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::ubvec4));
     config->enableArray("vsg_PositionScale", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec4));
@@ -350,10 +377,12 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
     {
         //vsg::info("brick ", brick, ", positiveScale = ", brick->positionScale->value(), " vertices ", brick->vertices, ",  ", brick->vertices->size(), ",  ", brick->normals->size(), ",  ", brick->colors->size());
 
+        auto brick_vertices = brick->vertices();
+
         vsg::DataList arrays;
-        arrays.push_back(brick->vertices);
-        arrays.push_back(brick->normals);
-        arrays.push_back(brick->colors);
+        arrays.push_back(brick_vertices);
+        arrays.push_back(brick->normals());
+        arrays.push_back(brick->colors());
         arrays.push_back(brick->positionScale);
 
         auto bindVertexBuffers = vsg::BindVertexBuffers::create();
@@ -361,7 +390,7 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
 
         auto commands = vsg::Commands::create();
         commands->addChild(bindVertexBuffers);
-        commands->addChild(vsg::Draw::create(brick->vertices->size(), 1, 0, 0));
+        commands->addChild(vsg::Draw::create(brick_vertices->valueCount(), 1, 0, 0));
 
         stateGroup->addChild(commands);
     }
