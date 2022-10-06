@@ -8,111 +8,17 @@
 
 #include <vsgPoints/BrickBuilder.h>
 
-#define LOCAL_VERTEX_TYPE 4
 
-vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg::dvec3& position, const vsg::dvec3& size, size_t numPoints, bool useBrickBuilder, bool perVertexNormals, bool perVertexColors, vsg::ref_ptr<const vsg::Options> options)
+vsg::ref_ptr<vsg::Node> createSimplePointScene(vsg::ref_ptr<vsg::vec4Value> viewport, vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec3Array> normals, vsg::ref_ptr<vsg::ubvec4Array> colors, vsg::vec4 positionScale, vsg::ref_ptr<const vsg::Options> options)
 {
-    bool usePositionScale = false;
+    bool perVertexNormals = normals->size() == vertices->size();
+    bool perVertexColors = colors->size() == vertices->size();
 
-    vsg::DataList arrays;
-
-#if LOCAL_VERTEX_TYPE==4
-    auto vertices = vsg::vec3Array::create(numPoints);
-#else
-    auto vertices = vsg::ubvec4Array::create(numPoints);
-#endif
-
-    arrays.push_back(vertices);
-
-    auto normals = vsg::vec3Array::create(perVertexNormals ? numPoints : 1);
-    arrays.push_back(normals);
-
-    auto colors = vsg::ubvec4Array::create(perVertexColors ? numPoints : 1);
-    arrays.push_back(colors);
-
-    vsg::vec4 positionScale(0.0f, 0.0f, 0.0f, 1.0f);
-    if (usePositionScale)
+    double interval = std::numeric_limits<double>::max();
+    for(size_t i = 1; i < vertices->size(); ++i)
     {
-        auto maxSize = std::max(std::max(size.x, size.y), size.z);
-        positionScale.set(position.x, position.y, position.z, maxSize);
-        arrays.push_back(vsg::vec4Value::create(positionScale));
-    }
-    else
-    {
-        arrays.push_back(vsg::vec4Value::create(vsg::vec4(0.0f, 0.0f, 0.0f, 1.0f)));
-    }
-
-    double area = size.x * size.y;
-    double areaPerPoint = area / static_cast<double>(numPoints);
-    double interval = sqrt(areaPerPoint);
-
-    size_t numColumns = static_cast<size_t>(ceil(size.x / interval));
-    size_t numRows = static_cast<size_t>(ceil(size.y / interval));
-
-    vsg::vec3 origin(position);
-
-    float dr = 1.0f / static_cast<float>(numRows-1);
-    float dc = 1.0f / static_cast<float>(numColumns-1);
-
-    auto computeZ = [&](float rr, float rc) -> float
-    {
-        return (sin(vsg::PIf * (1.0f+3.0f * rc + rr)) * 0.2f + 1.0f) * (size.z * 0.5f);
-    };
-
-    auto computePoint = [&](size_t c, size_t r) -> std::tuple<vsg::vec3, vsg::vec3, vsg::ubvec4>
-    {
-        float gradient_ratio = 0.01;
-        float rc = static_cast<float>(c) * dc;
-        float rr = static_cast<float>(r) * dr;
-        float z = computeZ(rc, rr);
-        float dz_dc = computeZ(rc + dc*gradient_ratio, rr) - z;
-        float dz_dr = computeZ(rc, rr + dr*gradient_ratio) - z;
-
-        vsg::vec3 vert(origin.x + interval * static_cast<float>(c), origin.y + interval * static_cast<float>(r), z);
-        vsg::vec3 norm(-dz_dc / (gradient_ratio * interval), -dz_dr / (gradient_ratio * interval), 0.0f);
-        norm.z = sqrt(1.0f - norm.x*norm.x - norm.y*norm.y);
-        vsg::ubvec4 col(static_cast<uint8_t>(rc*255.0f), static_cast<uint8_t>(rr*255.0f), 255, 255);
-        return {vert, norm, col};
-    };
-
-
-    size_t vi = 0;
-    for(size_t r = 0; r < numRows; ++r)
-    {
-        for(size_t c = 0; (c < numColumns) && (vi < numPoints); ++c)
-        {
-            auto [vert, norm, col] = computePoint(c, r);
-            if (usePositionScale)
-            {
-                vert.x = (vert.x - positionScale.x) / positionScale.w;
-                vert.y = (vert.y - positionScale.y) / positionScale.w;
-                vert.z = (vert.z - positionScale.z) / positionScale.w;
-            }
-
-#if LOCAL_VERTEX_TYPE==4
-            vertices->set(vi, vert);
-#else
-            vertices->set(vi, vsg::ubvec4(static_cast<uint8_t>(vert.x*255.0f), static_cast<uint8_t>(vert.y*255.0f), static_cast<uint8_t>(vert.z*255.0f), 0));
-#endif
-            if (perVertexNormals) normals->set(vi, norm);
-            if (perVertexColors) colors->set(vi, col);
-            ++vi;
-        }
-    }
-
-    if (!perVertexNormals) normals->set(0, vsg::vec3(0.0f, 0.0f, 1.0f));
-    if (!perVertexColors) colors->set(0, vsg::ubvec4(255, 255, 255, 255));
-
-    if (arrays.empty()) return {};
-
-    if (useBrickBuilder)
-    {
-        auto brickBuilder = vsgPoints::BrickBuilder::create();
-        brickBuilder->options = options;
-        brickBuilder->viewport = viewport;
-        brickBuilder->add(vertices, normals, colors);
-
-        return brickBuilder->build();
+        double adjecment_interval = vsg::length(vertices->at(1) - vertices->at(0));
+        if (adjecment_interval < interval) interval = adjecment_interval;
     }
 
     auto pointSize = vsg::vec2Value::create();
@@ -120,6 +26,12 @@ vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg:
 
     vsg::info("pointsSize = ", pointSize->value());
     vsg::info("viewport = ", viewport->value());
+
+    vsg::DataList arrays;
+    arrays.push_back(vertices);
+    arrays.push_back(normals);
+    arrays.push_back(colors);
+    arrays.push_back(vsg::vec4Value::create(positionScale));
 
     auto bindVertexBuffers = vsg::BindVertexBuffers::create();
     bindVertexBuffers->assignArrays(arrays);
@@ -189,6 +101,93 @@ vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg:
 
     return stateGroup;
 }
+
+vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg::dvec3& position, const vsg::dvec3& size, size_t numPoints, bool useBrickBuilder, bool perVertexNormals, bool perVertexColors, vsg::ref_ptr<const vsg::Options> options)
+{
+    bool usePositionScale = false;
+
+    auto vertices = vsg::vec3Array::create(numPoints);
+    auto normals = vsg::vec3Array::create(perVertexNormals ? numPoints : 1);
+    auto colors = vsg::ubvec4Array::create(perVertexColors ? numPoints : 1);
+
+    vsg::vec4 positionScale(0.0f, 0.0f, 0.0f, 1.0f);
+    if (usePositionScale)
+    {
+        auto maxSize = std::max(std::max(size.x, size.y), size.z);
+        positionScale.set(position.x, position.y, position.z, maxSize);
+    }
+
+    double area = size.x * size.y;
+    double areaPerPoint = area / static_cast<double>(numPoints);
+    double interval = sqrt(areaPerPoint);
+
+    size_t numColumns = static_cast<size_t>(ceil(size.x / interval));
+    size_t numRows = static_cast<size_t>(ceil(size.y / interval));
+
+    vsg::vec3 origin(position);
+
+    float dr = 1.0f / static_cast<float>(numRows-1);
+    float dc = 1.0f / static_cast<float>(numColumns-1);
+
+    auto computeZ = [&](float rr, float rc) -> float
+    {
+        return (sin(vsg::PIf * (1.0f+3.0f * rc + rr)) * 0.2f + 1.0f) * (size.z * 0.5f);
+    };
+
+    auto computePoint = [&](size_t c, size_t r) -> std::tuple<vsg::vec3, vsg::vec3, vsg::ubvec4>
+    {
+        float gradient_ratio = 0.01;
+        float rc = static_cast<float>(c) * dc;
+        float rr = static_cast<float>(r) * dr;
+        float z = computeZ(rc, rr);
+        float dz_dc = computeZ(rc + dc*gradient_ratio, rr) - z;
+        float dz_dr = computeZ(rc, rr + dr*gradient_ratio) - z;
+
+        vsg::vec3 vert(origin.x + interval * static_cast<float>(c), origin.y + interval * static_cast<float>(r), z);
+        vsg::vec3 norm(-dz_dc / (gradient_ratio * interval), -dz_dr / (gradient_ratio * interval), 0.0f);
+        norm.z = sqrt(1.0f - norm.x*norm.x - norm.y*norm.y);
+        vsg::ubvec4 col(static_cast<uint8_t>(rc*255.0f), static_cast<uint8_t>(rr*255.0f), 255, 255);
+        return {vert, norm, col};
+    };
+
+
+    size_t vi = 0;
+    for(size_t r = 0; r < numRows; ++r)
+    {
+        for(size_t c = 0; (c < numColumns) && (vi < numPoints); ++c)
+        {
+            auto [vert, norm, col] = computePoint(c, r);
+            if (usePositionScale)
+            {
+                vert.x = (vert.x - positionScale.x) / positionScale.w;
+                vert.y = (vert.y - positionScale.y) / positionScale.w;
+                vert.z = (vert.z - positionScale.z) / positionScale.w;
+            }
+
+            vertices->set(vi, vert);
+            if (perVertexNormals) normals->set(vi, norm);
+            if (perVertexColors) colors->set(vi, col);
+            ++vi;
+        }
+    }
+
+    if (!perVertexNormals) normals->set(0, vsg::vec3(0.0f, 0.0f, 1.0f));
+    if (!perVertexColors) colors->set(0, vsg::ubvec4(255, 255, 255, 255));
+
+    if (useBrickBuilder)
+    {
+        auto brickBuilder = vsgPoints::BrickBuilder::create();
+        brickBuilder->options = options;
+        brickBuilder->viewport = viewport;
+        brickBuilder->add(vertices, normals, colors);
+
+        return brickBuilder->build();
+    }
+    else
+    {
+        return createSimplePointScene(viewport, vertices, normals, colors, positionScale, options);
+    }
+ }
 
 int main(int argc, char** argv)
 {
