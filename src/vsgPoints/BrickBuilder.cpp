@@ -398,14 +398,12 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
         arrays.push_back(brick->colors());
         arrays.push_back(brick->positionScale);
 
-        auto bindVertexBuffers = vsg::BindVertexBuffers::create();
-        bindVertexBuffers->assignArrays(arrays);
+        auto vertexDraw = vsg::VertexDraw::create();
+        vertexDraw->assignArrays(arrays);
+        vertexDraw->vertexCount = brick_vertices->valueCount();
+        vertexDraw->instanceCount = 1;
 
-        auto commands = vsg::Commands::create();
-        commands->addChild(bindVertexBuffers);
-        commands->addChild(vsg::Draw::create(brick_vertices->valueCount(), 1, 0, 0));
-
-        stateGroup->addChild(commands);
+        stateGroup->addChild(vertexDraw);
     }
 
     root = stateGroup;
