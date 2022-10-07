@@ -30,8 +30,8 @@ namespace vsgPoints
         vsg::ref_ptr<vsg::vec4Value> viewport;
         vsg::ref_ptr<vsg::Node> root;
 
-        void add(vsg::ref_ptr< vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec3Array> normals, vsg::ref_ptr<vsg::ubvec4Array> colors);
+        void add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec3Array> normals, vsg::ref_ptr<vsg::ubvec4Array> colors);
 
         vsg::ref_ptr<vsg::Node> build();
     };
-}
+} // namespace vsgPoints

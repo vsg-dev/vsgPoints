@@ -16,11 +16,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include "shaders/assimp_phong_frag.cpp"
 #include "shaders/brick_vert.cpp"
 
-#include <vsg/io/Logger.h>
 #include <vsg/all.h>
+#include <vsg/io/Logger.h>
 
 using namespace vsgPoints;
-
 
 vsg::ref_ptr<vsg::Data> vsgPoints::createParticleImage(uint32_t dim)
 {
@@ -47,7 +46,6 @@ vsg::ref_ptr<vsg::Data> vsgPoints::createParticleImage(uint32_t dim)
     }
     return data;
 }
-
 
 vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsFlatShadedShaderSet(vsg::ref_ptr<const vsg::Options> options)
 {

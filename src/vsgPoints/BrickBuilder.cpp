@@ -12,93 +12,99 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsgPoints/BrickBuilder.h>
 
-#include <vsg/io/Logger.h>
 #include <vsg/all.h>
+#include <vsg/io/Logger.h>
 
 using namespace vsgPoints;
 
 namespace vsgPoints
 {
 
-struct SetArray : public vsg::Object
-{
-    virtual vsg::ref_ptr<vsg::Data> data() = 0;
-    virtual void setVertex(size_t i, const vsg::vec3& v) = 0;
-    virtual void setNormal(size_t i, const vsg::vec3& n) = 0;
-    virtual void setColor(size_t i, const vsg::ubvec4& c) = 0;
-};
-
-struct SetArray_vec3Array : public vsg::Inherit<SetArray, SetArray_vec3Array>
-{
-    SetArray_vec3Array(vsg::ref_ptr<vsg::vec3Array> in_array, VkFormat format = VK_FORMAT_R32G32B32_SFLOAT) : array(in_array) { array->getLayout().format = format; }
-
-    vsg::ref_ptr<vsg::vec3Array> array;
-
-    vsg::vec3 convert(const vsg::ubvec4& v)
+    struct SetArray : public vsg::Object
     {
-        const float multiplier = 1.0f/255.0f;
-        return vsg::vec3(static_cast<float>(v.x)*multiplier, static_cast<float>(v.y)*multiplier, static_cast<float>(v.z)*multiplier);
-    }
+        virtual vsg::ref_ptr<vsg::Data> data() = 0;
+        virtual void setVertex(size_t i, const vsg::vec3& v) = 0;
+        virtual void setNormal(size_t i, const vsg::vec3& n) = 0;
+        virtual void setColor(size_t i, const vsg::ubvec4& c) = 0;
+    };
 
-    vsg::ref_ptr<vsg::Data> data() override { return array; }
-    void setVertex(size_t i, const vsg::vec3& v) override { array->set(i, v); }
-    void setNormal(size_t i, const vsg::vec3& n) override { array->set(i, n); }
-    void setColor(size_t i, const vsg::ubvec4& c) override { array->set(i, convert(c)); }
-};
-
-struct SetArray_ubvec4Array : public vsg::Inherit<SetArray, SetArray_ubvec4Array>
-{
-    SetArray_ubvec4Array(vsg::ref_ptr<vsg::ubvec4Array> in_array, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM) : array(in_array) { array->getLayout().format = format; }
-
-    vsg::ref_ptr<vsg::ubvec4Array> array;
-
-    uint8_t convert(float v) const
+    struct SetArray_vec3Array : public vsg::Inherit<SetArray, SetArray_vec3Array>
     {
-        const float multiplier = 255.0f;
-        v *= multiplier;
-        if (v <= 0.0f) return static_cast<uint8_t>(0);
-        if (v >= multiplier) return static_cast<uint8_t>(255);
-        return static_cast<uint8_t>(v);
-    }
+        SetArray_vec3Array(vsg::ref_ptr<vsg::vec3Array> in_array, VkFormat format = VK_FORMAT_R32G32B32_SFLOAT) :
+            array(in_array) { array->getLayout().format = format; }
 
-    vsg::ubvec4 convert(const vsg::vec3& v) const
+        vsg::ref_ptr<vsg::vec3Array> array;
+
+        vsg::vec3 convert(const vsg::ubvec4& v)
+        {
+            const float multiplier = 1.0f / 255.0f;
+            return vsg::vec3(static_cast<float>(v.x) * multiplier, static_cast<float>(v.y) * multiplier, static_cast<float>(v.z) * multiplier);
+        }
+
+        vsg::ref_ptr<vsg::Data> data() override { return array; }
+        void setVertex(size_t i, const vsg::vec3& v) override { array->set(i, v); }
+        void setNormal(size_t i, const vsg::vec3& n) override { array->set(i, n); }
+        void setColor(size_t i, const vsg::ubvec4& c) override { array->set(i, convert(c)); }
+    };
+
+    struct SetArray_ubvec4Array : public vsg::Inherit<SetArray, SetArray_ubvec4Array>
     {
-        return vsg::ubvec4(convert(v.x), convert(v.y), convert(v.z), 0);
-    }
+        SetArray_ubvec4Array(vsg::ref_ptr<vsg::ubvec4Array> in_array, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM) :
+            array(in_array) { array->getLayout().format = format; }
 
-    vsg::ref_ptr<vsg::Data> data() override { return array; }
-    void setVertex(size_t i, const vsg::vec3& v) override { array->set(i, convert(v)); }
-    void setNormal(size_t i, const vsg::vec3& n) override { array->set(i, convert(n)); }
-    void setColor(size_t i, const vsg::ubvec4& c) override { array->set(i, c); }
-};
+        vsg::ref_ptr<vsg::ubvec4Array> array;
 
-struct Brick : public vsg::Inherit<vsg::Object, Brick>
-{
-    Brick(const vsg::dvec3& in_position, double brickSize, size_t num, vsg::ref_ptr<vsg::vec3Array> shared_normals, vsg::ref_ptr<vsg::ubvec4Array> shared_colors) :
-        end_index(0),
-        position(in_position),
-        multiplier(1.0f / brickSize),
-        positionScale(vsg::vec4Value::create(in_position.x, in_position.y, in_position.z, brickSize))
+        uint8_t convert(float v) const
+        {
+            const float multiplier = 255.0f;
+            v *= multiplier;
+            if (v <= 0.0f) return static_cast<uint8_t>(0);
+            if (v >= multiplier) return static_cast<uint8_t>(255);
+            return static_cast<uint8_t>(v);
+        }
+
+        vsg::ubvec4 convert(const vsg::vec3& v) const
+        {
+            return vsg::ubvec4(convert(v.x), convert(v.y), convert(v.z), 0);
+        }
+
+        vsg::ref_ptr<vsg::Data> data() override { return array; }
+        void setVertex(size_t i, const vsg::vec3& v) override { array->set(i, convert(v)); }
+        void setNormal(size_t i, const vsg::vec3& n) override { array->set(i, convert(n)); }
+        void setColor(size_t i, const vsg::ubvec4& c) override { array->set(i, c); }
+    };
+
+    struct Brick : public vsg::Inherit<vsg::Object, Brick>
     {
-        //vsg::info("Allocating Brick ", num, " position = ", position, ", brickSize = ", brickSize, ", multiplier = ", multiplier);
+        Brick(const vsg::dvec3& in_position, double brickSize, size_t num, vsg::ref_ptr<vsg::vec3Array> shared_normals, vsg::ref_ptr<vsg::ubvec4Array> shared_colors) :
+            end_index(0),
+            position(in_position),
+            multiplier(1.0f / brickSize),
+            positionScale(vsg::vec4Value::create(in_position.x, in_position.y, in_position.z, brickSize))
+        {
+            //vsg::info("Allocating Brick ", num, " position = ", position, ", brickSize = ", brickSize, ", multiplier = ", multiplier);
 
-        //set_vertices = SetArray_vec3Array::create(vsg::vec3Array::create(num));
-        set_vertices = SetArray_ubvec4Array::create(vsg::ubvec4Array::create(num));
+            //set_vertices = SetArray_vec3Array::create(vsg::vec3Array::create(num));
+            set_vertices = SetArray_ubvec4Array::create(vsg::ubvec4Array::create(num));
 
-        if (shared_normals) set_normals = SetArray_vec3Array::create(shared_normals);
-        else set_normals = SetArray_vec3Array::create(vsg::vec3Array::create(num));
+            if (shared_normals)
+                set_normals = SetArray_vec3Array::create(shared_normals);
+            else
+                set_normals = SetArray_vec3Array::create(vsg::vec3Array::create(num));
 
-        if (shared_colors) set_colors = SetArray_ubvec4Array::create(shared_colors);
-        else set_colors = SetArray_ubvec4Array::create(vsg::ubvec4Array::create(num));
-    }
+            if (shared_colors)
+                set_colors = SetArray_ubvec4Array::create(shared_colors);
+            else
+                set_colors = SetArray_ubvec4Array::create(vsg::ubvec4Array::create(num));
+        }
 
-    vsg::ref_ptr<vsg::Data> vertices() { return set_vertices->data(); }
-    vsg::ref_ptr<vsg::Data> normals() { return set_normals->data(); }
-    vsg::ref_ptr<vsg::Data> colors() { return set_colors->data(); }
+        vsg::ref_ptr<vsg::Data> vertices() { return set_vertices->data(); }
+        vsg::ref_ptr<vsg::Data> normals() { return set_normals->data(); }
+        vsg::ref_ptr<vsg::Data> colors() { return set_colors->data(); }
 
-    virtual void setVertex(size_t i, const vsg::vec3& vertex)
-    {
-        auto v = (vertex - position) * multiplier;
+        virtual void setVertex(size_t i, const vsg::vec3& vertex)
+        {
+            auto v = (vertex - position) * multiplier;
 
 #if 0
         if (v.x < 0.0f || v.x > 1.0f ||
@@ -108,29 +114,29 @@ struct Brick : public vsg::Inherit<vsg::Object, Brick>
             vsg::info("fail setVertex(", i, ", vertex = ", vertex, ", v = ", v);
         }
 #endif
-        set_vertices->setVertex(i, v);
-    }
+            set_vertices->setVertex(i, v);
+        }
 
-    virtual void setNormal(size_t i, const vsg::vec3& norm)
-    {
-        set_normals->setNormal(i, norm);
-    }
+        virtual void setNormal(size_t i, const vsg::vec3& norm)
+        {
+            set_normals->setNormal(i, norm);
+        }
 
-    virtual void setColor(size_t i, const vsg::ubvec4& color)
-    {
-        set_colors->setColor(i, color);
-    }
+        virtual void setColor(size_t i, const vsg::ubvec4& color)
+        {
+            set_colors->setColor(i, color);
+        }
 
-    size_t end_index;
-    vsg::vec3 position;
-    float multiplier;
-    vsg::ref_ptr<vsg::vec4Value> positionScale;
+        size_t end_index;
+        vsg::vec3 position;
+        float multiplier;
+        vsg::ref_ptr<vsg::vec4Value> positionScale;
 
-    vsg::ref_ptr<SetArray> set_vertices;
-    vsg::ref_ptr<SetArray> set_normals;
-    vsg::ref_ptr<SetArray> set_colors;
-};
-}
+        vsg::ref_ptr<SetArray> set_vertices;
+        vsg::ref_ptr<SetArray> set_normals;
+        vsg::ref_ptr<SetArray> set_colors;
+    };
+} // namespace vsgPoints
 
 EVSG_type_name(vsgPoints::Brick);
 
@@ -147,22 +153,22 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
     if (!perVertexColors) shared_colors = colors;
 
     double min_spacing = 1000.0;
-    for(size_t i = 1; i<vertices->size(); ++i)
+    for (size_t i = 1; i < vertices->size(); ++i)
     {
-        double spacing = vsg::length(vertices->at(i) - vertices->at(i-1));
+        double spacing = vsg::length(vertices->at(i) - vertices->at(i - 1));
         if (spacing < min_spacing) min_spacing = spacing;
     }
 
     vsg::info("min_spacing = ", min_spacing);
 
-    for(auto& vertex : *vertices)
+    for (auto& vertex : *vertices)
     {
         extents.add(vertex);
     }
 
     vsg::info("extents ", extents);
 
-    double precision = std::min(0.01, min_spacing*0.5);
+    double precision = std::min(0.01, min_spacing * 0.5);
     double type_limit = 256;
 
     vsg::info("precision ", precision);
@@ -179,14 +185,14 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
 
     std::vector<size_t> pointsPerBrick(num_x * num_y * num_z);
     size_t numBricks = 0;
-    for(auto& vertex : *vertices)
+    for (auto& vertex : *vertices)
     {
         auto brick_position = (vsg::dvec3(vertex) - extents.min) / brickSize;
         auto brick_i = std::floor(brick_position.x);
         auto brick_j = std::floor(brick_position.y);
         auto brick_k = std::floor(brick_position.z);
         auto index = brick_i + brick_j * (num_x) + brick_k * (num_x * num_y);
-        if (pointsPerBrick[index]==0) ++numBricks; // first point in brick, so requires a Brick
+        if (pointsPerBrick[index] == 0) ++numBricks; // first point in brick, so requires a Brick
         ++pointsPerBrick[index];
     }
 
@@ -201,7 +207,7 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
     activeBricks.reserve(numBricks);
 
     std::vector<vsg::ref_ptr<Brick>> bricks(num_x * num_y * num_z);
-    for(size_t i = 0; i < vertices->size(); ++i)
+    for (size_t i = 0; i < vertices->size(); ++i)
     {
         auto& vertex = vertices->at(i);
         auto brick_position = (vsg::dvec3(vertex) - extents.min) / brickSize;
@@ -225,9 +231,8 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
 
     if (activeBricks.empty()) return;
 
-
     auto pointSize = vsg::vec2Value::create();
-    pointSize->value().set(min_spacing*3.0f, min_spacing);
+    pointSize->value().set(min_spacing * 3.0f, min_spacing);
 
     auto textureData = createParticleImage(64);
     auto shaderSet = perVertexNormals ? vsgPoints::createPointsPhongShaderSet(options) : vsgPoints::createPointsFlatShadedShaderSet(options);
@@ -288,7 +293,7 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
     auto bindViewDescriptorSets = vsg::BindViewDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, config->layout, 1);
     stateGroup->add(bindViewDescriptorSets);
 
-    for(auto& brick : activeBricks)
+    for (auto& brick : activeBricks)
     {
         //vsg::info("brick ", brick, ", positiveScale = ", brick->positionScale->value(), " vertices ", brick->vertices, ",  ", brick->vertices->size(), ",  ", brick->normals->size(), ",  ", brick->colors->size());
 

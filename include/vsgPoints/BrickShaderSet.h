@@ -22,4 +22,4 @@ namespace vsgPoints
 
     extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::ShaderSet> createPointsFlatShadedShaderSet(vsg::ref_ptr<const vsg::Options> options);
     extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::ShaderSet> createPointsPhongShaderSet(vsg::ref_ptr<const vsg::Options> options);
-}
+} // namespace vsgPoints
