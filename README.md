@@ -1,6 +1,6 @@
 # vsgPoints - VulkanSceneGraph Point Cloud rendering
 
-Cross platform, open source (MIT license) C++17 library and example set for rendering large point cloud data using VulkanSceneGraph.
+Cross platform, open source (MIT license) C++17 library and example set for rendering large (hundreds of millions) point cloud data using VulkanSceneGraph.
 
 ## Dependencies
 
