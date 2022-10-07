@@ -12,26 +12,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsg/nodes/Node.h>
+#include <vsg/utils/ShaderSet.h>
 
-#include <vsgPoints/BrickShaderSet.h>
+#include <vsgPoints/Export.h>
 
 namespace vsgPoints
 {
-    class VSGPOINTS_DECLSPEC BrickBuilder : public vsg::Inherit<vsg::Object, BrickBuilder>
-    {
-    public:
-        vsg::dbox extents;
-        size_t num_x = 0;
-        size_t num_y = 0;
-        size_t num_z = 0;
+    extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::Data> createParticleImage(uint32_t dim);
 
-        vsg::ref_ptr<const vsg::Options> options;
-        vsg::ref_ptr<vsg::vec4Value> viewport;
-        vsg::ref_ptr<vsg::Node> root;
-
-        void add(vsg::ref_ptr< vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec3Array> normals, vsg::ref_ptr<vsg::ubvec4Array> colors);
-
-        vsg::ref_ptr<vsg::Node> build();
-    };
+    extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::ShaderSet> createPointsFlatShadedShaderSet(vsg::ref_ptr<const vsg::Options> options);
+    extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::ShaderSet> createPointsPhongShaderSet(vsg::ref_ptr<const vsg::Options> options);
 }

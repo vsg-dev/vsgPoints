@@ -8,10 +8,12 @@ SET(HEADER_PATH ${CMAKE_SOURCE_DIR}/include/vsgPoints)
 set(HEADERS
     ${HEADER_PATH}/Export.h
     ${HEADER_PATH}/BrickBuilder.h
+    ${HEADER_PATH}/BrickShaderSet.h
  )
 
 set(SOURCES
     BrickBuilder.cpp
+    BrickShaderSet.cpp
 )
 
 add_library(vsgPoints ${HEADERS} ${SOURCES})
@@ -28,7 +30,6 @@ target_include_directories(vsgPoints PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/vsgPoints>
     $<INSTALL_INTERFACE:include>
-    ${GDAL_INCLUDE_DIR}
     ${EXTRA_INCLUDES}
 )
 
@@ -36,7 +37,6 @@ target_link_libraries(vsgPoints
     PUBLIC
         vsg::vsg
     PRIVATE
-        ${GDAL_LIBRARY}
         ${EXTRA_LIBRARIES}
 )
 
