@@ -240,7 +240,7 @@ int main(int argc, char** argv)
     bool normals = arguments.read("--normals");
     auto viewportData = vsg::vec4Value::create(0.0f, 0.0f, 1920.0f, 1080.0f);
 #if (VSG_VERSION_MAJOR >= 1) || (VSG_VERSION_MINOR >= 6) || ((VSG_VERSION_MINOR == 5) && (VSG_VERSION_PATCH >= 7))
-    viewportData->getLayout().dynamic = true;
+    viewportData->getLayout().dataVariance = vsg::DYNAMIC_DATA;
 #endif
 
     auto scene = create(viewportData, position, size, numPoints, useBrickBuilder, normals, colours, options);
