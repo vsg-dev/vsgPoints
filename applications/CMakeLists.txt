@@ -1,2 +1,2 @@
 add_subdirectory(vsggeneratepoints)
-add_subdirectory(vsgpoints)
+add_subdirectory(vsgpoints_3dc)
