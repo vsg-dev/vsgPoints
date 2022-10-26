@@ -47,7 +47,7 @@ vsg::ref_ptr<vsg::Node> createSimplePointScene(vsg::ref_ptr<vsg::vec4Value> view
     bool blending = false;
 
     auto& defines = config->shaderHints->defines;
-    defines.push_back("VSG_POINT_SPRITE");
+    defines.insert("VSG_POINT_SPRITE");
 
     config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::vec3));
     config->enableArray("vsg_Normal", perVertexNormals ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec3));

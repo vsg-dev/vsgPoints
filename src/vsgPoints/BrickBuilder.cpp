@@ -240,7 +240,7 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
     bool blending = false;
 
     auto& defines = config->shaderHints->defines;
-    defines.push_back("VSG_POINT_SPRITE");
+    defines.insert("VSG_POINT_SPRITE");
 
     auto first_brick = activeBricks.front();
     auto first_vertices = first_brick->vertices();
