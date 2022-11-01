@@ -270,7 +270,7 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
     config->assignUniform(descriptors, "material", mat);
 
     auto vdsl = vsg::ViewDescriptorSetLayout::create();
-    config->additionalDescrptorSetLayout = vdsl;
+    config->additionalDescriptorSetLayout = vdsl;
 
     config->colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
         {blending, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
