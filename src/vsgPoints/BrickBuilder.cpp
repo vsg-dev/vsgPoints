@@ -31,7 +31,7 @@ namespace vsgPoints
     struct SetArray_vec3Array : public vsg::Inherit<SetArray, SetArray_vec3Array>
     {
         SetArray_vec3Array(vsg::ref_ptr<vsg::vec3Array> in_array, VkFormat format = VK_FORMAT_R32G32B32_SFLOAT) :
-            array(in_array) { array->getLayout().format = format; }
+            array(in_array) { array->properties.format = format; }
 
         vsg::ref_ptr<vsg::vec3Array> array;
 
@@ -50,7 +50,7 @@ namespace vsgPoints
     struct SetArray_ubvec4Array : public vsg::Inherit<SetArray, SetArray_ubvec4Array>
     {
         SetArray_ubvec4Array(vsg::ref_ptr<vsg::ubvec4Array> in_array, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM) :
-            array(in_array) { array->getLayout().format = format; }
+            array(in_array) { array->properties.format = format; }
 
         vsg::ref_ptr<vsg::ubvec4Array> array;
 
@@ -244,7 +244,7 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
 
     auto first_brick = activeBricks.front();
     auto first_vertices = first_brick->vertices();
-    config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, first_vertices->getLayout().stride, first_vertices->getLayout().format);
+    config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, first_vertices->properties.stride, first_vertices->properties.format);
     //config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::vec3), VK_FORMAT_R32G32B32_SFLOAT);
     //config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::ubvec4), VK_FORMAT_R8G8B8A8_UNORM);
 

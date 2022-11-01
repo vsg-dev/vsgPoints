@@ -163,7 +163,7 @@ vsg::DataList combineDataBlocks(vsg::ref_ptr<DataBlocks> dataBlocks, FormatLayou
 vsg::ref_ptr<vsg::Data> createParticleImage(uint32_t dim)
 {
     auto data = vsg::ubvec4Array2D::create(dim, dim);
-    data->getLayout().format = VK_FORMAT_R8G8B8A8_UNORM;
+    data->properties.format = VK_FORMAT_R8G8B8A8_UNORM;
     float div = 2.0f / static_cast<float>(dim - 1);
     float distance_at_one = 0.5f;
     float distance_at_zero = 1.0f;
