@@ -72,7 +72,7 @@ vsg::ref_ptr<vsg::Node> createSimplePointScene(vsg::ref_ptr<vsg::vec4Value> view
     config->assignUniform(descriptors, "material", mat);
 
     auto vdsl = vsg::ViewDescriptorSetLayout::create();
-    config->additionalDescrptorSetLayout = vdsl;
+    config->additionalDescriptorSetLayout = vdsl;
 
     config->colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
         {blending, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
@@ -240,7 +240,7 @@ int main(int argc, char** argv)
     bool normals = arguments.read("--normals");
     auto viewportData = vsg::vec4Value::create(0.0f, 0.0f, 1920.0f, 1080.0f);
 #if (VSG_VERSION_MAJOR >= 1) || (VSG_VERSION_MINOR >= 6) || ((VSG_VERSION_MINOR == 5) && (VSG_VERSION_PATCH >= 7))
-    viewportData->getLayout().dataVariance = vsg::DYNAMIC_DATA;
+    viewportData->properties.dataVariance = vsg::DYNAMIC_DATA;
 #endif
 
     auto scene = create(viewportData, position, size, numPoints, useBrickBuilder, normals, colours, options);

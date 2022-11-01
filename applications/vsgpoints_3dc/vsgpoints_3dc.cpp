@@ -163,7 +163,7 @@ vsg::DataList combineDataBlocks(vsg::ref_ptr<DataBlocks> dataBlocks, FormatLayou
 vsg::ref_ptr<vsg::Data> createParticleImage(uint32_t dim)
 {
     auto data = vsg::ubvec4Array2D::create(dim, dim);
-    data->getLayout().format = VK_FORMAT_R8G8B8A8_UNORM;
+    data->properties.format = VK_FORMAT_R8G8B8A8_UNORM;
     float div = 2.0f / static_cast<float>(dim - 1);
     float distance_at_one = 0.5f;
     float distance_at_zero = 1.0f;
@@ -198,19 +198,16 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(vsg::ref_ptr<const vsg::Options> 
     }
 
     // load shaders
-    auto vertexShader = vsg::read_cast<vsg::ShaderStage>("shaders/pointsprites.vert", options);
-    //if (!vertexShader) vertexShader = assimp_vert(); // fallback to shaders/assimp_vert.cpp
+    auto vertexShader = vsg::read_cast<vsg::ShaderStage>("shaders/pointsprites_old.vert", options);
 
     vsg::ref_ptr<vsg::ShaderStage> fragmentShader;
     if (lighting)
     {
-        fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp_phong.frag", options);
-        //if (!fragmentShader) fragmentShader = assimp_phong_frag();
+        fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/standard_phong.frag", options);
     }
     else
     {
-        fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp_flat_shaded.frag", options);
-        //if (!fragmentShader) fragmentShader = assimp_flat_shaded_frag();
+        fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/standard_flat_shaded.frag", options);
     }
 
     if (!vertexShader || !fragmentShader)
@@ -421,6 +418,7 @@ int main(int argc, char** argv)
     arguments.read("--rgb", formatLayout.rgb);
     arguments.read("--normal", formatLayout.normal);
 
+
     auto scene = vsg::Group::create();
 
     for (int i = 1; i < argc; ++i)
@@ -488,9 +486,6 @@ int main(int argc, char** argv)
     auto perspective = vsg::Perspective::create(30.0, static_cast<double>(window->extent2D().width) / static_cast<double>(window->extent2D().height), nearFarRatio * radius, radius * 10.0);
 
     auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
-
-    // set up the compilation support in builder to allow us to interactively create and compile subgraphs from within the IntersectionHandler
-    // builder->setup(window, camera->viewportState);
 
     // add close handler to respond the close window button and pressing escape
     viewer->addEventHandler(vsg::CloseHandler::create(viewer));
