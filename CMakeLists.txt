@@ -11,9 +11,6 @@ SET(VSGPOINTS_RELEASE_CANDIDATE 0)
 set(VSGPOINTS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "Root source directory of vsgPoints")
 set(VSGPOINTS_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE INTERNAL "Root binary directory of vsgPoints")
 
-list(APPEND CMAKE_MODULE_PATH ${VSGPOINTS_SOURCE_DIR}/cmake)
-include(vsgMacros)
-
 # set the use of C++17 globally as all examples require it
 set(CMAKE_CXX_STANDARD 17)
 
