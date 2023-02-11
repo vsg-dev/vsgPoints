@@ -1,6 +1,8 @@
 #include <vsg/io/VSG.h>
-static auto brick_vert = []() {std::istringstream str(
-R"(#vsga 0.5.6
+#include <vsg/io/mem_stream.h>
+static auto brick_vert = []() {
+static const char str[] = 
+R"(#vsga 1.0.3
 Root id=1 vsg::ShaderStage
 {
   userObjects 0
@@ -34,13 +36,10 @@ layout(location = 2) out vec4 vertexColor;
 
 layout(location = 5) out vec3 viewDir;
 
-layout(binding = 8) uniform Viewport
+layout(set = 1, binding = 1) uniform ViewportData
 {
-    float x;
-    float y;
-    float width;
-    float height;
-} viewport;
+    vec4 values[1];
+} viewportData;
 
 layout(binding = 9) uniform PointSize
 {
@@ -72,7 +71,8 @@ void main()
     vertexColor = vsg_Color;
 
     float dist = max(pointSize.minDistance, abs(eyePos.z));
-    gl_PointSize = viewport.height * (pointSize.size / dist);
+    vec4 viewport = viewportData.values[0];
+    gl_PointSize = viewport[2] * (pointSize.size / dist);
 }
 
 "
@@ -81,7 +81,7 @@ void main()
   }
   NumSpecializationConstants 0
 }
-)");
+)";
 vsg::VSG io;
-return io.read_cast<vsg::ShaderStage>(str);
+return io.read_cast<vsg::ShaderStage>(reinterpret_cast<const uint8_t*>(str), sizeof(str));
 };

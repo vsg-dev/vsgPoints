@@ -9,7 +9,7 @@
 #include <vsgPoints/BrickBuilder.h>
 
 
-vsg::ref_ptr<vsg::Node> createSimplePointScene(vsg::ref_ptr<vsg::vec4Value> viewport, vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec3Array> normals, vsg::ref_ptr<vsg::ubvec4Array> colors, vsg::vec4 positionScale, vsg::ref_ptr<const vsg::Options> options)
+vsg::ref_ptr<vsg::Node> createSimplePointScene(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec3Array> normals, vsg::ref_ptr<vsg::ubvec4Array> colors, vsg::vec4 positionScale, vsg::ref_ptr<const vsg::Options> options)
 {
     bool perVertexNormals = normals->size() == vertices->size();
     bool perVertexColors = colors->size() == vertices->size();
@@ -25,7 +25,6 @@ vsg::ref_ptr<vsg::Node> createSimplePointScene(vsg::ref_ptr<vsg::vec4Value> view
     pointSize->value().set(interval*3.0f, interval);
 
     vsg::info("pointsSize = ", pointSize->value());
-    vsg::info("viewport = ", viewport->value());
 
     vsg::DataList arrays;
     arrays.push_back(vertices);
@@ -63,7 +62,6 @@ vsg::ref_ptr<vsg::Node> createSimplePointScene(vsg::ref_ptr<vsg::vec4Value> view
         config->assignTexture(descriptors, "diffuseMap", textureData, sampler);
     }
 
-    config->assignUniform(descriptors, "viewport", viewport);
     config->assignUniform(descriptors, "pointSize", pointSize);
 
     auto mat = vsg::PhongMaterialValue::create();
@@ -102,7 +100,7 @@ vsg::ref_ptr<vsg::Node> createSimplePointScene(vsg::ref_ptr<vsg::vec4Value> view
     return stateGroup;
 }
 
-vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg::dvec3& position, const vsg::dvec3& size, size_t numPoints, bool useBrickBuilder, bool perVertexNormals, bool perVertexColors, vsg::ref_ptr<const vsg::Options> options)
+vsg::ref_ptr<vsg::Node> create(const vsg::dvec3& position, const vsg::dvec3& size, size_t numPoints, bool useBrickBuilder, bool perVertexNormals, bool perVertexColors, vsg::ref_ptr<const vsg::Options> options)
 {
     bool usePositionScale = false;
 
@@ -178,14 +176,13 @@ vsg::ref_ptr<vsg::Node> create(vsg::ref_ptr<vsg::vec4Value> viewport, const vsg:
     {
         auto brickBuilder = vsgPoints::BrickBuilder::create();
         brickBuilder->options = options;
-        brickBuilder->viewport = viewport;
         brickBuilder->add(vertices, normals, colors);
 
         return brickBuilder->build();
     }
     else
     {
-        return createSimplePointScene(viewport, vertices, normals, colors, positionScale, options);
+        return createSimplePointScene(vertices, normals, colors, positionScale, options);
     }
  }
 
@@ -238,12 +235,8 @@ int main(int argc, char** argv)
     bool useBrickBuilder  = arguments.read("--brick");
     bool colours = arguments.read({"-c", "--colors"});
     bool normals = arguments.read("--normals");
-    auto viewportData = vsg::vec4Value::create(0.0f, 0.0f, 1920.0f, 1080.0f);
-#if (VSG_VERSION_MAJOR >= 1) || (VSG_VERSION_MINOR >= 6) || ((VSG_VERSION_MINOR == 5) && (VSG_VERSION_PATCH >= 7))
-    viewportData->properties.dataVariance = vsg::DYNAMIC_DATA;
-#endif
 
-    auto scene = create(viewportData, position, size, numPoints, useBrickBuilder, normals, colours, options);
+    auto scene = create(position, size, numPoints, useBrickBuilder, normals, colours, options);
 
     if (!scene)
     {
@@ -301,9 +294,6 @@ int main(int argc, char** argv)
     auto commandGraph = vsg::createCommandGraphForView(window, camera, scene);
     viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 
-    auto& viewport = camera->viewportState->getViewport();
-    viewportData->value().set(viewport.x, viewport.y, viewport.width, viewport.height);
-
     viewer->compile();
 
     auto startTime = vsg::clock::now();
@@ -316,12 +306,6 @@ int main(int argc, char** argv)
         viewer->handleEvents();
 
         viewer->update();
-
-        if (viewportData->value()[2] != viewport.width || viewportData->value()[3] != viewport.height)
-        {
-            viewportData->value().set(viewport.x, viewport.y, viewport.width, viewport.height);
-            viewportData->dirty();
-        }
 
         viewer->recordAndSubmit();
 

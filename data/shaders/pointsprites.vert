@@ -22,13 +22,10 @@ layout(location = 2) out vec4 vertexColor;
 
 layout(location = 5) out vec3 viewDir;
 
-layout(binding = 8) uniform Viewport
+layout(set = 1, binding = 1) uniform ViewportData
 {
-    float x;
-    float y;
-    float width;
-    float height;
-} viewport;
+    vec4 values[1];
+} viewportData;
 
 layout(binding = 9) uniform PointSize
 {
@@ -60,6 +57,7 @@ void main()
     vertexColor = vsg_Color;
 
     float dist = max(pointSize.minDistance, abs(eyePos.z));
-    gl_PointSize = viewport.height * (pointSize.size / dist);
+    vec4 viewport = viewportData.values[0];
+    gl_PointSize = viewport[2] * (pointSize.size / dist);
 }
 
