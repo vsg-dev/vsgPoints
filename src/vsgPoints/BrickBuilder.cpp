@@ -261,7 +261,6 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
         config->assignTexture(descriptors, "diffuseMap", textureData, sampler);
     }
 
-    config->assignUniform(descriptors, "viewport", viewport);
     config->assignUniform(descriptors, "pointSize", pointSize);
 
     auto mat = vsg::PhongMaterialValue::create();

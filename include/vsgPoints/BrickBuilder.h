@@ -27,7 +27,6 @@ namespace vsgPoints
         size_t num_z = 0;
 
         vsg::ref_ptr<const vsg::Options> options;
-        vsg::ref_ptr<vsg::vec4Value> viewport;
         vsg::ref_ptr<vsg::Node> root;
 
         void add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec3Array> normals, vsg::ref_ptr<vsg::ubvec4Array> colors);
