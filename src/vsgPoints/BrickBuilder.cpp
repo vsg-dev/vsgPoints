@@ -74,6 +74,34 @@ namespace vsgPoints
         void setColor(size_t i, const vsg::ubvec4& c) override { array->set(i, c); }
     };
 
+
+    struct SetArray_ubvec3Array : public vsg::Inherit<SetArray, SetArray_ubvec3Array>
+    {
+        SetArray_ubvec3Array(vsg::ref_ptr<vsg::ubvec3Array> in_array, VkFormat format = VK_FORMAT_R8G8B8_UNORM) :
+            array(in_array) { array->properties.format = format; }
+
+        vsg::ref_ptr<vsg::ubvec3Array> array;
+
+        uint8_t convert(float v) const
+        {
+            const float multiplier = 255.0f;
+            v *= multiplier;
+            if (v <= 0.0f) return static_cast<uint8_t>(0);
+            if (v >= multiplier) return static_cast<uint8_t>(255);
+            return static_cast<uint8_t>(v);
+        }
+
+        vsg::ubvec3 convert(const vsg::vec3& v) const
+        {
+            return vsg::ubvec3(convert(v.x), convert(v.y), convert(v.z));
+        }
+
+        vsg::ref_ptr<vsg::Data> data() override { return array; }
+        void setVertex(size_t i, const vsg::vec3& v) override { array->set(i, convert(v)); }
+        void setNormal(size_t i, const vsg::vec3& n) override { array->set(i, convert(n)); }
+        void setColor(size_t i, const vsg::ubvec4& c) override { array->set(i, vsg::ubvec3(c.r, c.g, c.b)); }
+    };
+
     struct Brick : public vsg::Inherit<vsg::Object, Brick>
     {
         Brick(const vsg::dvec3& in_position, double brickSize, size_t num, vsg::ref_ptr<vsg::vec3Array> shared_normals, vsg::ref_ptr<vsg::ubvec4Array> shared_colors) :
@@ -85,7 +113,8 @@ namespace vsgPoints
             //vsg::info("Allocating Brick ", num, " position = ", position, ", brickSize = ", brickSize, ", multiplier = ", multiplier);
 
             //set_vertices = SetArray_vec3Array::create(vsg::vec3Array::create(num));
-            set_vertices = SetArray_ubvec4Array::create(vsg::ubvec4Array::create(num));
+            //set_vertices = SetArray_ubvec4Array::create(vsg::ubvec4Array::create(num));
+            set_vertices = SetArray_ubvec3Array::create(vsg::ubvec3Array::create(num));
 
             if (shared_normals)
                 set_normals = SetArray_vec3Array::create(shared_normals);
@@ -297,6 +326,8 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
         //vsg::info("brick ", brick, ", positiveScale = ", brick->positionScale->value(), " vertices ", brick->vertices, ",  ", brick->vertices->size(), ",  ", brick->normals->size(), ",  ", brick->colors->size());
 
         auto brick_vertices = brick->vertices();
+
+        // vsg::info("brick_vertices = ", brick_vertices);
 
         vsg::DataList arrays;
         arrays.push_back(brick_vertices);
