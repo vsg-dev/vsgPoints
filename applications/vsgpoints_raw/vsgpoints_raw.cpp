@@ -48,6 +48,8 @@ struct Brick
     size_t max = std::numeric_limits<size_t>::lowest();
     size_t count = 0;
     vsg::dbox bound;
+    vsg::ref_ptr<vsg::VertexDraw> vertexDraw;
+    vsg::ref_ptr<vsg::vec4Value> positionScale;
     vsg::ref_ptr<vsg::ubvec3Array> vertices;
     vsg::ref_ptr<vsg::ubvec3Array> colors;
 
@@ -90,8 +92,15 @@ struct Brick
 
     void allocate()
     {
+        positionScale = vsg::vec4Value::create();
         vertices = vsg::ubvec3Array::create(count);
         colors = vsg::ubvec3Array::create(count);
+
+        // set up vertexDraw that will do the rendering.
+        vertexDraw = vsg::VertexDraw::create();
+        vertexDraw->assignArrays({positionScale, vertices, colors});
+        vertexDraw->vertexCount = count;
+        vertexDraw->instanceCount = 1;
     }
 };
 
@@ -322,8 +331,7 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
     auto objects = vsg::Objects::create();
     for(auto& [key, brick] : bricks)
     {
-        if (brick.vertices) objects->addChild(brick.vertices);
-        if (brick.colors) objects->addChild(brick.colors);
+        objects->addChild(brick.vertexDraw);
     }
     return objects;
 }
