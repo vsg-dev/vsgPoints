@@ -42,12 +42,14 @@ std::string format_number(T v)
     return s.str();
 }
 
-struct Brick
+class Brick : public vsg::Inherit<vsg::Object, Brick>
 {
+public:
     size_t min = std::numeric_limits<size_t>::max();
     size_t max = std::numeric_limits<size_t>::lowest();
     size_t count = 0;
     vsg::dbox bound;
+    vsg::dvec4 originScale;
     vsg::ref_ptr<vsg::VertexDraw> vertexDraw;
     vsg::ref_ptr<vsg::vec4Value> positionScale;
     vsg::ref_ptr<vsg::ubvec3Array> vertices;
@@ -92,7 +94,7 @@ struct Brick
 
     void allocate()
     {
-        positionScale = vsg::vec4Value::create();
+        positionScale = vsg::vec4Value::create(originScale);
         vertices = vsg::ubvec3Array::create(count);
         colors = vsg::ubvec3Array::create(count);
 
@@ -102,10 +104,12 @@ struct Brick
         vertexDraw->vertexCount = count;
         vertexDraw->instanceCount = 1;
     }
+protected:
+    virtual ~Brick() {}
 };
 
 using Key = vsg::ivec3;
-using Bricks = std::map<Key, Brick>;
+using Bricks = std::map<Key, vsg::ref_ptr<Brick>>;
 
 struct Level
 {
@@ -184,10 +188,24 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
             vsg::dvec3 cell_floor{ std::floor(cell_pos.x), std::floor(cell_pos.y), std::floor(cell_pos.z)};
             vsg::ivec3 cell_key{static_cast<int>(cell_floor.x), static_cast<int>(cell_floor.y), static_cast<int>(cell_floor.z)};
 #else
-            vsg::ivec3 cell_key{static_cast<int>(cell_pos.x), static_cast<int>(cell_pos.y), static_cast<int>(cell_pos.z)};
+            vsg::ivec3 cell_key{static_cast<int>(std::floor(cell_pos.x)), static_cast<int>(std::floor(cell_pos.y)), static_cast<int>(std::floor(cell_pos.z))};
 #endif
-            Brick& brick = bricks[cell_key];
-            brick.add(pointIndex, point.v);
+            auto& brick = bricks[cell_key];
+            if (!brick)
+            {
+                brick = Brick::create();
+                vsg::dvec3 cell_origin = origin + vsg::dvec3(static_cast<double>(cell_key.x), static_cast<double>(cell_key.y), static_cast<double>(cell_key.z)) * brickSize;
+                brick->originScale = {cell_origin.x, cell_origin.y, cell_origin.z, brickSize};
+
+                vsg::dvec3 local_offset = point.v - cell_origin;
+                if (local_offset.x < 0.0 || local_offset.y < 0.0 || local_offset.z < 0.0 ||
+                    local_offset.x > 1.0 || local_offset.y > 1.0 || local_offset.z > 1.0)
+                {
+                    std::cout<<"Warning : out of range -> local_offset = "<<local_offset<<", point.v = "<<point.v<<std::endl;
+                }
+            }
+
+            brick->add(pointIndex, point.v);
 
             previous_point = point.v;
             ++pointIndex;
@@ -225,23 +243,94 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
 
     for(auto& [key, brick] : bricks)
     {
-        size_t range = brick.max - brick.min;
-        if (brick.count < min_count) min_count = brick.count;
-        if (brick.count > max_count) max_count = brick.count;
+        size_t range = brick->max - brick->min;
+        if (brick->count < min_count) min_count = brick->count;
+        if (brick->count > max_count) max_count = brick->count;
         if (range > max_range) max_range = range;
 
-        size_t brick_memory = brick.count * ((settings.bits * 6) / 8);
+        size_t brick_memory = brick->count * ((settings.bits * 6) / 8);
         total_memory += brick_memory;
 
         if (brick_memory > biggest_brick) biggest_brick = brick_memory;
     }
+    std::cout<<"    min_count "<< format_number(min_count)<<std::endl;
+    std::cout<<"    max_count "<< format_number(max_count)<<std::endl;
+    std::cout<<"    max_range "<< format_number(max_range)<<std::endl;
+    std::cout<<"    biggest_brick "<< format_number(biggest_brick)<<" bytes"<<std::endl;
+    std::cout<<"    total_memory "<< format_number(total_memory)<<" bytes"<<std::endl;
+
+    vsg::ivec3 min_key = { std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), std::numeric_limits<int>::max() };
+    vsg::ivec3 max_key = { std::numeric_limits<int>::lowest(), std::numeric_limits<int>::lowest(), std::numeric_limits<int>::lowest() };
+
+    for(auto& [key, brick] : bricks)
+    {
+        if (key.x < min_key.x) min_key.x = key.x;
+        if (key.y < min_key.y) min_key.y = key.y;
+        if (key.z < min_key.z) min_key.z = key.z;
+        if (key.x > max_key.x) max_key.x = key.x;
+        if (key.y > max_key.y) max_key.y = key.y;
+        if (key.z > max_key.z) max_key.z = key.z;
+    }
+
+    vsg::ivec3 range_key = max_key - min_key;
+    std::cout<<"    min_key "<<min_key<<std::endl;
+    std::cout<<"    max_key "<<max_key<<std::endl;
+    std::cout<<"    range_key "<<range_key<<std::endl;
+
+    // shift the bicks keys
+    Bricks shifted_bricks;
+    for(auto& [key, brick] : bricks)
+    {
+        shifted_bricks[key - min_key] = brick;
+    }
+
+    //bricks = shifted_bricks;
+    min_key = { std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), std::numeric_limits<int>::max() };
+    max_key = { std::numeric_limits<int>::lowest(), std::numeric_limits<int>::lowest(), std::numeric_limits<int>::lowest() };
+
+    for(auto& [key, brick] : shifted_bricks)
+    {
+        if (key.x < min_key.x) min_key.x = key.x;
+        if (key.y < min_key.y) min_key.y = key.y;
+        if (key.z < min_key.z) min_key.z = key.z;
+        if (key.x > max_key.x) max_key.x = key.x;
+        if (key.y > max_key.y) max_key.y = key.y;
+        if (key.z > max_key.z) max_key.z = key.z;
+    }
+
+    range_key = max_key - min_key;
+    std::cout<<"    2nd min_key "<<min_key<<std::endl;
+    std::cout<<"    2nd max_key "<<max_key<<std::endl;
+    std::cout<<"    2nd range_key "<<range_key<<std::endl;
+
+
+    std::vector<vsg::ivec3> levelRanges;
+
+    while(range_key.x > 1 || range_key.y > 1 || range_key.z > 1)
+    {
+        levelRanges.push_back(range_key);
+        if (range_key.x >= 2) { range_key.x = (range_key.x+1)/2; }
+        if (range_key.y >= 2) { range_key.y = (range_key.y+1)/2; }
+        if (range_key.z >= 2) { range_key.z = (range_key.z+1)/2; }
+    }
+    levelRanges.push_back(range_key);
+
+    size_t num_levels = levelRanges.size();
+    std::cout<<"    num_levels = "<<num_levels<<std::endl;
+    size_t level = 0;
+    for(auto itr = levelRanges.rbegin(); itr != levelRanges.rend(); ++itr)
+    {
+        std::cout<<"    level = "<<level<<", range "<<*itr<<std::endl;
+        ++level;
+    }
+    std::cout<<std::endl;
 
     if (settings.allocate)
     {
         for(auto& [key, brick] : bricks)
         {
-            brick.allocate();
-            brick.reset();
+            brick->allocate();
+            brick->reset();
         }
 
         numPointsRead = 0;
@@ -269,69 +358,27 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
                 vsg::ivec3 cell_key{static_cast<int>(cell_floor.x), static_cast<int>(cell_floor.y), static_cast<int>(cell_floor.z)};
                 vsg::dvec3 cell_r = (cell_pos - cell_floor) * multiplier;
 #else
-                vsg::ivec3 cell_key{static_cast<int>(cell_pos.x), static_cast<int>(cell_pos.y), static_cast<int>(cell_pos.z)};
+                vsg::ivec3 cell_key{static_cast<int>(std::floor(cell_pos.x)), static_cast<int>(std::floor(cell_pos.y)), static_cast<int>(std::floor(cell_pos.z))};
                 vsg::dvec3 cell_r = (cell_pos - vsg::dvec3{static_cast<double>(cell_key.x), static_cast<double>(cell_key.y), static_cast<double>(cell_key.z)}) * multiplier;
 #endif
                 vsg::ubvec3 v{static_cast<std::uint8_t>(cell_r.x), static_cast<std::uint8_t>(cell_r.y), static_cast<std::uint8_t>(cell_r.z)};
-                Brick& brick = bricks[cell_key];
-                brick.set(v, point.c);
+                auto& brick = bricks[cell_key];
+                if (brick) brick->set(v, point.c);
+                else std::cout<<"Warning: point does not match to a brick."<<std::endl;
 
                 ++pointIndex;
             }
         }
     }
 
-    std::cout<<"    min_count "<< format_number(min_count)<<std::endl;
-    std::cout<<"    max_count "<< format_number(max_count)<<std::endl;
-    std::cout<<"    max_range "<< format_number(max_range)<<std::endl;
-    std::cout<<"    biggest_brick "<< format_number(biggest_brick)<<" bytes"<<std::endl;
-    std::cout<<"    total_memory "<< format_number(total_memory)<<" bytes"<<std::endl;
 
     std::cout<<"  2nd numPointsRead = "<<numPointsRead<<std::endl;
 
-    vsg::ivec3 min_key = { std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), std::numeric_limits<int>::max() };
-    vsg::ivec3 max_key = { std::numeric_limits<int>::lowest(), std::numeric_limits<int>::lowest(), std::numeric_limits<int>::lowest() };
-
-    for(auto& [key, brick] : bricks)
-    {
-        if (key.x < min_key.x) min_key.x = key.x;
-        if (key.y < min_key.y) min_key.y = key.y;
-        if (key.z < min_key.z) min_key.z = key.z;
-        if (key.x > max_key.x) max_key.x = key.x;
-        if (key.y > max_key.y) max_key.y = key.y;
-        if (key.z > max_key.z) max_key.z = key.z;
-    }
-
-    vsg::ivec3 range_key = max_key - min_key;
-    std::cout<<"    min_key "<<min_key<<std::endl;
-    std::cout<<"    max_key "<<max_key<<std::endl;
-    std::cout<<"    range_key "<<range_key<<std::endl;
-
-    std::vector<vsg::ivec3> levelRanges;
-
-    while(range_key.x > 1 || range_key.y > 1 || range_key.z > 1)
-    {
-        levelRanges.push_back(range_key);
-        if (range_key.x >= 2) { range_key.x = (range_key.x+1)/2; }
-        if (range_key.y >= 2) { range_key.y = (range_key.y+1)/2; }
-        if (range_key.z >= 2) { range_key.z = (range_key.z+1)/2; }
-    }
-    levelRanges.push_back(range_key);
-
-    size_t num_levels = levelRanges.size();
-    std::cout<<"    num_levels = "<<num_levels<<std::endl;
-    size_t level = 0;
-    for(auto itr = levelRanges.rbegin(); itr != levelRanges.rend(); ++itr)
-    {
-        std::cout<<"    level = "<<level<<", range "<<*itr<<std::endl;
-        ++level;
-    }
-    std::cout<<std::endl;
 
     auto objects = vsg::Objects::create();
     for(auto& [key, brick] : bricks)
     {
-        objects->addChild(brick.vertexDraw);
+        objects->addChild(brick->vertexDraw);
     }
     return objects;
 }
