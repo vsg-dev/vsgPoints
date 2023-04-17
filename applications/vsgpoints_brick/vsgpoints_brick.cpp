@@ -70,9 +70,8 @@ struct Settings
 
 vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Settings& settings)
 {
-    double multiplier = pow(2.0, static_cast<double>(settings.bits));
-    double brickSize = settings.precision * multiplier;
-    // double inverse_brickSize = 1.0 / brickSize;
+    double multiplier = 1.0 / settings.precision;
+    double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
 
     std::cout<<"sizeof(VsgIOPoint) = "<<sizeof(VsgIOPoint)<<std::endl;
     std::cout<<"brickSize = "<<brickSize<<std::endl;
@@ -99,6 +98,7 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
     size_t numPointsRead = 0;
 
     std::cout<<"Reading data."<<std::endl;
+    vsg::dbox bounds;
 
     while(fin)
     {
@@ -114,6 +114,8 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
         {
             if (numPointsToRead==0) break;
             --numPointsToRead;
+
+            bounds.add(point.v);
 
             vsg::dvec3 scaled_v = point.v * multiplier;
             vsg::dvec3 rounded_v = {std::round(scaled_v.x), std::round(scaled_v.y), std::round(scaled_v.z)};
@@ -135,13 +137,25 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
     std::cout<<"After reading data "<<bricks.size()<<std::endl;
 
     size_t biggestBrick = 0;
+    vsg::t_box<int32_t> keyBounds;
     for(auto& [key, brick] : bricks)
     {
-        std::cout<<"key = "<<key<<" brick.size() = "<<brick->points.size()<<std::endl;
+        keyBounds.add(key[1], key[2], key[3]);
         if (brick->points.size() > biggestBrick) biggestBrick = brick->points.size();
     }
 
+    std::cout<<"bounds "<<bounds<<std::endl;
+    std::cout<<"keyBounds "<<keyBounds<<std::endl;
     std::cout<<"biggest brick "<<biggestBrick<<std::endl;
+
+
+#if 0
+    for(auto& [key, brick] : bricks)
+    {
+        std::cout<<"key = "<<key<<" brick.size() = "<<brick->points.size()<<std::endl;
+    }
+#endif
+
 
     vsg::ref_ptr<vsg::Objects> objects;
 
