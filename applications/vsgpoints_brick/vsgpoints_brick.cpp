@@ -127,9 +127,12 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
             packedPoint.c = point.c;
 
             auto& brick = bricks[key];
-            if (!brick) brick = Brick::create();
+            if (!brick)
+            {
+                brick = Brick::create();
+            }
 
-            brick->points.push_back(packedPoint);
+            // brick->points.push_back(packedPoint);
         }
 
     }
@@ -178,6 +181,16 @@ int main(int argc, char** argv)
     // add vsgXchange's support for reading and writing 3rd party file formats
     options->add(vsgXchange::all::create());
 #endif
+
+    if (int type; arguments.read("--allocator", type)) vsg::Allocator::instance()->allocatorType = vsg::AllocatorType(type);
+    if (size_t objectsBlockSize; arguments.read("--objects", objectsBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_OBJECTS, objectsBlockSize);
+    if (size_t nodesBlockSize; arguments.read("--nodes", nodesBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_NODES, nodesBlockSize);
+    if (size_t dataBlockSize; arguments.read("--data", dataBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_DATA, dataBlockSize);
+
+
+    std::cout<<"vsg::Allocator::instance()->allocatorType = "<<int(vsg::Allocator::instance()->allocatorType)<<std::endl;
+    std::cout<<"vsg::Allocator::instance()->getMemoryBlocks(vsg::ALLOCATOR_AFFINITY_OBJECTS)->blockSize = "<<
+        vsg::Allocator::instance()->getMemoryBlocks(vsg::ALLOCATOR_AFFINITY_OBJECTS)->blockSize<<std::endl;
 
     Settings settings;
     settings.numPointsPerBlock = arguments.value<size_t>(10000, "-b");
