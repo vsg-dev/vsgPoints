@@ -152,6 +152,19 @@ bool readBricks(const vsg::Path filename, const Settings& settings, Bricks& bric
     return true;
 }
 
+bool generateLevel(Bricks& source, Bricks& destination)
+{
+    for(auto& [source_key, source_brick] : source)
+    {
+        Key destination_key = {source_key.x / 2, source_key.y / 2, source_key.z / 2, source_key.w * 2};
+        //vsg::ivec3 offset = {source_key.x & 2, source_key.y & 2, source_key.z & 2};
+
+        auto& destinatio_brick = destination[destination_key];
+        if (!destinatio_brick) destinatio_brick = Brick::create();
+    }
+    return !destination.empty();
+}
+
 vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Settings& settings)
 {
     double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
@@ -159,33 +172,38 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
     std::cout<<"sizeof(VsgIOPoint) = "<<sizeof(VsgIOPoint)<<std::endl;
     std::cout<<"brickSize = "<<brickSize<<std::endl;
 
-    Bricks bricks;
-    if (!readBricks(filename, settings, bricks))
+    std::list<Bricks> levels(1);
+    auto& first_level = levels.front();
+    if (!readBricks(filename, settings, first_level))
     {
         std::cout<<"Waring: unable to read file."<<std::endl;
         return {};
     }
 
-    std::cout<<"After reading data "<<bricks.size()<<std::endl;
+    std::cout<<"After reading data "<<first_level.size()<<std::endl;
 
     size_t biggestBrick = 0;
     vsg::t_box<int32_t> keyBounds;
-    for(auto& [key, brick] : bricks)
+    for(auto& [key, brick] : first_level)
     {
         keyBounds.add(key.x, key.y, key.z);
         if (brick->points.size() > biggestBrick) biggestBrick = brick->points.size();
     }
 
+    while(levels.back().size() > 1)
+    {
+        auto& source = levels.back();
+
+        levels.push_back(Bricks());
+        auto& destination = levels.back();
+
+        if (!generateLevel(source, destination)) break;
+    }
+
+    std::cout<<"levels = "<<levels.size()<<std::endl;
+
     std::cout<<"keyBounds "<<keyBounds<<std::endl;
     std::cout<<"biggest brick "<<biggestBrick<<std::endl;
-
-
-#if 0
-    for(auto& [key, brick] : bricks)
-    {
-        std::cout<<"key = "<<key<<" brick.size() = "<<brick->points.size()<<std::endl;
-    }
-#endif
 
     if (settings.write)
     {
@@ -196,28 +214,31 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
 
         std::basic_ostringstream<vsg::Path::value_type> str;
 
-        for(auto& [key, brick] : bricks)
+        for(auto& bricks : levels)
         {
-            str.clear();
-            str.str("");
-            if (path) str << path << deliminator;
-            str << name << deliminator << key.w << deliminator << key.z << deliminator << key.y;
-            vsg::Path brick_path(str.str());
+            for(auto& [key, brick] : bricks)
+            {
+                str.clear();
+                str.str("");
+                if (path) str << path << deliminator;
+                str << name << deliminator << key.w << deliminator << key.z << deliminator << key.y;
+                vsg::Path brick_path(str.str());
 
-            str.clear();
-            str.str("");
-            str << key.x << ext;
-            vsg::Path brick_filename(str.str());
+                str.clear();
+                str.str("");
+                str << key.x << ext;
+                vsg::Path brick_filename(str.str());
 
-            vsg::makeDirectory(brick_path);
+                vsg::makeDirectory(brick_path);
 
-            vsg::Path full_path = brick_path/brick_filename;
+                vsg::Path full_path = brick_path/brick_filename;
 
-            vsg::vec4 originScale(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize, brickSize);
-            auto tile = brick->createRendering(originScale);
-            vsg::write(tile, full_path);
+                vsg::vec4 originScale(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize, brickSize);
+                auto tile = brick->createRendering(originScale);
+                vsg::write(tile, full_path);
 
-            // std::cout<<"path = "<<brick_path<<"\tfilename = "<<brick_filename<<std::endl;
+                // std::cout<<"path = "<<brick_path<<"\tfilename = "<<brick_filename<<std::endl;
+            }
         }
     }
 
