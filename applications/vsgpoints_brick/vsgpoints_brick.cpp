@@ -88,7 +88,7 @@ struct Settings
     double bits = 8.0;
     bool allocate = false;
     bool write = false;
-    vsg::Path extension = ".vsgt";
+    vsg::Path extension = ".vsgb";
 };
 
 using Key = vsg::ivec4;
@@ -157,10 +157,27 @@ bool generateLevel(Bricks& source, Bricks& destination)
     for(auto& [source_key, source_brick] : source)
     {
         Key destination_key = {source_key.x / 2, source_key.y / 2, source_key.z / 2, source_key.w * 2};
-        //vsg::ivec3 offset = {source_key.x & 2, source_key.y & 2, source_key.z & 2};
+        vsg::ivec3 offset = {(source_key.x & 1) << 8, (source_key.y & 1) << 8, (source_key.z & 1) << 8};
 
         auto& destinatio_brick = destination[destination_key];
         if (!destinatio_brick) destinatio_brick = Brick::create();
+
+        auto& source_points = source_brick->points;
+        auto& desintation_points = destinatio_brick->points;
+        size_t count = source_points.size();
+        for(size_t i = 0; i < count; i+= 4)
+        {
+            auto& p = source_points[i];
+
+            PackedPoint new_p;
+            new_p.v.x = static_cast<int8_t>((static_cast<int32_t>(p.v.x) + offset.x)/2);
+            new_p.v.y = static_cast<int8_t>((static_cast<int32_t>(p.v.y) + offset.y)/2);
+            new_p.v.z = static_cast<int8_t>((static_cast<int32_t>(p.v.z) + offset.z)/2);
+            new_p.c = p.c;
+
+            desintation_points.push_back(new_p);
+        }
+
     }
     return !destination.empty();
 }
@@ -214,6 +231,8 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
 
         std::basic_ostringstream<vsg::Path::value_type> str;
 
+        double levelBrickSize = brickSize;
+
         for(auto& bricks : levels)
         {
             for(auto& [key, brick] : bricks)
@@ -233,12 +252,13 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
 
                 vsg::Path full_path = brick_path/brick_filename;
 
-                vsg::vec4 originScale(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize, brickSize);
+                vsg::vec4 originScale(static_cast<double>(key.x) * levelBrickSize, static_cast<double>(key.y) * levelBrickSize, static_cast<double>(key.z) * levelBrickSize, levelBrickSize);
                 auto tile = brick->createRendering(originScale);
                 vsg::write(tile, full_path);
 
                 // std::cout<<"path = "<<brick_path<<"\tfilename = "<<brick_filename<<std::endl;
             }
+            levelBrickSize *= 2.0;
         }
     }
 
