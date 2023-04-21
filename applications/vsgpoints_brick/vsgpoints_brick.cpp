@@ -120,7 +120,7 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
             vsg::dvec3 scaled_v = point.v * multiplier;
             vsg::dvec3 rounded_v = {std::round(scaled_v.x), std::round(scaled_v.y), std::round(scaled_v.z)};
             vsg::t_vec3<int64_t> int64_v = {static_cast<int64_t>(rounded_v.x),  static_cast<int64_t>(rounded_v.y), static_cast<int64_t>(rounded_v.z)};
-            Key key = { 256, static_cast<int32_t>(int64_v.x / 256), static_cast<int32_t>(int64_v.y / 256), static_cast<int32_t>(int64_v.z / 256)};
+            Key key = { static_cast<int32_t>(int64_v.x / 256), static_cast<int32_t>(int64_v.y / 256), static_cast<int32_t>(int64_v.z / 256), 1};
 
             PackedPoint packedPoint;
             packedPoint.v = { static_cast<uint8_t>(int64_v.x & 0xff), static_cast<uint8_t>(int64_v.y & 0xff), static_cast<uint8_t>(int64_v.z & 0xff)};
@@ -132,7 +132,7 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
                 brick = Brick::create();
             }
 
-            // brick->points.push_back(packedPoint);
+            brick->points.push_back(packedPoint);
         }
 
     }
@@ -143,7 +143,7 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
     vsg::t_box<int32_t> keyBounds;
     for(auto& [key, brick] : bricks)
     {
-        keyBounds.add(key[1], key[2], key[3]);
+        keyBounds.add(key.x, key.y, key.z);
         if (brick->points.size() > biggestBrick) biggestBrick = brick->points.size();
     }
 
