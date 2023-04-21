@@ -159,10 +159,41 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
     }
 #endif
 
+    if (settings.write)
+    {
+        auto deliminator = vsg::Path::preferred_separator;
+        vsg::Path path = vsg::filePath(filename);
+        vsg::Path name = vsg::simpleFilename(filename);
+        vsg::Path ext = ".vsgb";
+
+        std::basic_ostringstream<vsg::Path::value_type> str;
+
+        for(auto& [key, brick] : bricks)
+        {
+            str.clear();
+            str.str("");
+            if (path) str << path << deliminator;
+            str << name << deliminator << key.w << deliminator << key.z << deliminator << key.y;
+            vsg::Path brick_path(str.str());
+
+            str.clear();
+            str.str("");
+            str << key.x << ext;
+            vsg::Path brick_filename(str.str());
+
+            vsg::makeDirectory(brick_path);
+
+
+            vsg::Path full_path = brick_path/brick_filename;
+
+            // std::cout<<"path = "<<brick_path<<"\tfilename = "<<brick_filename<<std::endl;
+
+            // vsg::write(brick->vertexDraw, full_path);
+        }
+    }
+
 
     vsg::ref_ptr<vsg::Objects> objects;
-
-
     return objects;
 }
 
