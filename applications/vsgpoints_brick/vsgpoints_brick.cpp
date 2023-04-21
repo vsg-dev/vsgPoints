@@ -54,6 +54,28 @@ public:
 
     std::vector<PackedPoint> points;
 
+    vsg::ref_ptr<vsg::Node> createRendering(const vsg::vec4& originScale)
+    {
+        auto positionScale = vsg::vec4Value::create(originScale);
+        auto vertices = vsg::ubvec3Array::create(points.size());
+        auto colors = vsg::ubvec3Array::create(points.size());
+
+        auto vertex_itr = vertices->begin();
+        auto color_itr = colors->begin();
+        for(auto& point : points)
+        {
+            *(vertex_itr++) = point.v;
+            *(color_itr++) = point.c;
+        }
+
+        // set up vertexDraw that will do the rendering.
+        auto vertexDraw = vsg::VertexDraw::create();
+        vertexDraw->assignArrays({positionScale, vertices, colors});
+        vertexDraw->vertexCount = points.size();
+        vertexDraw->instanceCount = 1;
+
+        return vertexDraw;
+    }
 protected:
     virtual ~Brick() {}
 };
@@ -66,18 +88,16 @@ struct Settings
     double bits = 8.0;
     bool allocate = false;
     bool write = false;
+    vsg::Path extension = ".vsgt";
 };
 
-vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Settings& settings)
+using Key = vsg::ivec4;
+using Bricks = std::map<Key, vsg::ref_ptr<Brick>>;
+
+bool readBricks(const vsg::Path filename, const Settings& settings, Bricks& bricks)
 {
-    double multiplier = 1.0 / settings.precision;
-    double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
-
-    std::cout<<"sizeof(VsgIOPoint) = "<<sizeof(VsgIOPoint)<<std::endl;
-    std::cout<<"brickSize = "<<brickSize<<std::endl;
-
     std::ifstream fin(filename, std::ios::in | std::ios::binary);
-    if (!fin) return {};
+    if (!fin) return false;
 
     fin.seekg(0, fin.end);
     size_t fileSize = fin.tellg();
@@ -85,21 +105,16 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
     std::cout<<"    "<<filename<<" size = "<<format_number(fileSize)<<std::endl;
     std::cout<<"    numPoints = "<<format_number(numPoints)<<std::endl;
 
-    if (numPoints == 0) return {};
-
-    using Key = vsg::ivec4;
-
-    std::map<Key, vsg::ref_ptr<Brick>> bricks;
+    if (numPoints == 0) return false;
 
     fin.clear();
     fin.seekg(0, fin.beg);
 
+    double multiplier = 1.0 / settings.precision;
     auto points = vsg::Array<VsgIOPoint>::create(settings.numPointsPerBlock);
     size_t numPointsRead = 0;
 
     std::cout<<"Reading data."<<std::endl;
-    vsg::dbox bounds;
-
     while(fin)
     {
         size_t numPointsToRead = std::min(numPoints - numPointsRead, settings.numPointsPerBlock);
@@ -114,8 +129,6 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
         {
             if (numPointsToRead==0) break;
             --numPointsToRead;
-
-            bounds.add(point.v);
 
             vsg::dvec3 scaled_v = point.v * multiplier;
             vsg::dvec3 rounded_v = {std::round(scaled_v.x), std::round(scaled_v.y), std::round(scaled_v.z)};
@@ -136,6 +149,22 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
         }
 
     }
+    return true;
+}
+
+vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Settings& settings)
+{
+    double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
+
+    std::cout<<"sizeof(VsgIOPoint) = "<<sizeof(VsgIOPoint)<<std::endl;
+    std::cout<<"brickSize = "<<brickSize<<std::endl;
+
+    Bricks bricks;
+    if (!readBricks(filename, settings, bricks))
+    {
+        std::cout<<"Waring: unable to read file."<<std::endl;
+        return {};
+    }
 
     std::cout<<"After reading data "<<bricks.size()<<std::endl;
 
@@ -147,7 +176,6 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
         if (brick->points.size() > biggestBrick) biggestBrick = brick->points.size();
     }
 
-    std::cout<<"bounds "<<bounds<<std::endl;
     std::cout<<"keyBounds "<<keyBounds<<std::endl;
     std::cout<<"biggest brick "<<biggestBrick<<std::endl;
 
@@ -164,7 +192,7 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
         auto deliminator = vsg::Path::preferred_separator;
         vsg::Path path = vsg::filePath(filename);
         vsg::Path name = vsg::simpleFilename(filename);
-        vsg::Path ext = ".vsgb";
+        vsg::Path ext = settings.extension;
 
         std::basic_ostringstream<vsg::Path::value_type> str;
 
@@ -183,12 +211,13 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
 
             vsg::makeDirectory(brick_path);
 
-
             vsg::Path full_path = brick_path/brick_filename;
 
-            // std::cout<<"path = "<<brick_path<<"\tfilename = "<<brick_filename<<std::endl;
+            vsg::vec4 originScale(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize, brickSize);
+            auto tile = brick->createRendering(originScale);
+            vsg::write(tile, full_path);
 
-            // vsg::write(brick->vertexDraw, full_path);
+            // std::cout<<"path = "<<brick_path<<"\tfilename = "<<brick_filename<<std::endl;
         }
     }
 
