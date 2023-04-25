@@ -95,6 +95,7 @@ struct Settings
     double precision = 0.001;
     double bits = 8.0;
     bool write = false;
+    bool plod = false;
     vsg::Path extension = ".vsgb";
     vsg::ref_ptr<vsg::Options> options;
     vsg::dbox bound;
@@ -305,6 +306,30 @@ vsg::ref_ptr<vsg::Node> writeBricks(Levels& levels, const vsg::Path filename, Se
     return last;
 }
 
+vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, const vsg::Path filename, Settings& settings)
+{
+    auto stateGroup = createStateGroup(settings);
+
+    auto deliminator = vsg::Path::preferred_separator;
+    vsg::Path path = vsg::filePath(filename);
+    vsg::Path name = vsg::simpleFilename(filename);
+    vsg::Path ext = settings.extension;
+
+    std::basic_ostringstream<vsg::Path::value_type> str;
+
+    double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
+    double rootBrickSize = brickSize * std::pow(2.0, levels.size()-1);
+
+    std::cout<<"rootBrickSize  = "<<rootBrickSize<<std::endl;
+
+    for(auto itr = levels.rbegin(); itr != levels.rend(); ++itr)
+    {
+        std::cout<<"   "<<itr->size()<<std::endl;
+    }
+
+    return stateGroup;
+}
+
 vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& settings)
 {
     double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
@@ -346,13 +371,18 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& setti
     std::cout<<"biggest brick "<<biggestBrick<<std::endl;
 
 
-    if (settings.write)
+    if (settings.plod)
+    {
+        return createPagedLOD(levels, filename, settings);
+    }
+    else if (settings.write)
     {
         vsg::ref_ptr<vsg::Node> last = writeBricks(levels, filename, settings);
         auto stateGroup = createStateGroup(settings);
         stateGroup->addChild(last);
         return stateGroup;
     }
+
 
     return {};
 }
@@ -388,6 +418,7 @@ int main(int argc, char** argv)
     settings.precision = arguments.value<double>(0.001, "-p");
     settings.bits = arguments.value<double>(8, "--bits");
     settings.write = arguments.read("-w");
+    settings.plod = arguments.read("--plod");
     settings.options = options;
 
     auto outputFilename = arguments.value<vsg::Path>("", "-o");
