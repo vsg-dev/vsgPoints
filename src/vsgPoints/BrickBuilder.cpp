@@ -274,12 +274,10 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
     auto first_brick = activeBricks.front();
     auto first_vertices = first_brick->vertices();
     config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, first_vertices->properties.stride, first_vertices->properties.format);
-    //config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::vec3), VK_FORMAT_R32G32B32_SFLOAT);
-    //config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::ubvec4), VK_FORMAT_R8G8B8A8_UNORM);
-
     config->enableArray("vsg_Normal", perVertexNormals ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec3));
     config->enableArray("vsg_Color", perVertexColors ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::ubvec4));
     config->enableArray("vsg_PositionScale", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec4));
+    config->enableArray("vsg_PointSize", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec2));
 
     vsg::Descriptors descriptors;
     if (textureData)
@@ -289,8 +287,6 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
         sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         config->assignTexture(descriptors, "diffuseMap", textureData, sampler);
     }
-
-    config->assignUniform(descriptors, "pointSize", pointSize);
 
     auto mat = vsg::PhongMaterialValue::create();
     mat->value().alphaMask = 1.0f;
@@ -334,6 +330,7 @@ void BrickBuilder::add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::
         arrays.push_back(brick->normals());
         arrays.push_back(brick->colors());
         arrays.push_back(brick->positionScale);
+        arrays.push_back(pointSize);
 
         auto vertexDraw = vsg::VertexDraw::create();
         vertexDraw->assignArrays(arrays);

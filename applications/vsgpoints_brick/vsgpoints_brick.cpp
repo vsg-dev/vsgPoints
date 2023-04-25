@@ -56,15 +56,17 @@ public:
 
     std::vector<PackedPoint> points;
 
-    vsg::ref_ptr<vsg::Node> createRendering(const vsg::vec4& originScale)
+    vsg::ref_ptr<vsg::Node> createRendering(const vsg::vec4& positionScale, const vsg::vec2& pointSize)
     {
         auto vertices = vsg::ubvec3Array::create(points.size(), vsg::Data::Properties(VK_FORMAT_R8G8B8_UNORM));
         auto normals = vsg::vec3Value::create(vsg::vec3(0.0f, 0.0f, 1.0f));
         auto colors = vsg::ubvec3Array::create(points.size(), vsg::Data::Properties(VK_FORMAT_R8G8B8_UNORM));
-        auto positionScale = vsg::vec4Value::create(originScale);
+        auto positionScaleValue = vsg::vec4Value::create(positionScale);
+        auto pointSizeValue = vsg::vec2Value::create(pointSize);
 
         normals->properties.format = VK_FORMAT_R32G32B32_SFLOAT;
-        positionScale->properties.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        positionScaleValue->properties.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        pointSizeValue->properties.format = VK_FORMAT_R32G32_SFLOAT;
 
         auto vertex_itr = vertices->begin();
         auto color_itr = colors->begin();
@@ -76,7 +78,7 @@ public:
 
         // set up vertexDraw that will do the rendering.
         auto vertexDraw = vsg::VertexDraw::create();
-        vertexDraw->assignArrays({vertices, normals, colors, positionScale});
+        vertexDraw->assignArrays({vertices, normals, colors, positionScaleValue, pointSizeValue});
         vertexDraw->vertexCount = points.size();
         vertexDraw->instanceCount = 1;
 
@@ -209,6 +211,7 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(const Settings& settings)
     config->enableArray("vsg_Normal", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec3), VK_FORMAT_R32G32B32_SFLOAT);
     config->enableArray("vsg_Color", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::ubvec3), VK_FORMAT_R8G8B8_UNORM);
     config->enableArray("vsg_PositionScale", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec4), VK_FORMAT_R32G32B32A32_SFLOAT);
+    config->enableArray("vsg_PointSize", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec2), VK_FORMAT_R32G32_SFLOAT);
 
     vsg::Descriptors descriptors;
     if (textureData)
@@ -218,11 +221,6 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(const Settings& settings)
         sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         config->assignTexture(descriptors, "diffuseMap", textureData, sampler);
     }
-
-    float interval = 0.001f;
-    auto pointSize = vsg::vec2Value::create();
-    pointSize->value().set(interval*3.0f, interval);
-    config->assignUniform(descriptors, "pointSize", pointSize);
 
     auto mat = vsg::PhongMaterialValue::create();
     mat->value().alphaMask = 1.0f;
@@ -332,8 +330,11 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& setti
 
                 vsg::Path full_path = brick_path/brick_filename;
 
+                float brickPrecision = static_cast<float>(levelBrickSize / 256.0);
+                vsg::vec2 pointSize(brickPrecision, brickPrecision);
+
                 vsg::vec4 originScale(static_cast<double>(key.x) * levelBrickSize, static_cast<double>(key.y) * levelBrickSize, static_cast<double>(key.z) * levelBrickSize, levelBrickSize);
-                auto tile = brick->createRendering(originScale);
+                auto tile = brick->createRendering(originScale, pointSize);
                 vsg::write(tile, full_path);
 
                 last = tile;
