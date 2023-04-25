@@ -102,6 +102,7 @@ struct Settings
 
 using Key = vsg::ivec4;
 using Bricks = std::map<Key, vsg::ref_ptr<Brick>>;
+using Levels = std::list<Bricks>;
 
 bool readBricks(const vsg::Path filename, Settings& settings, Bricks& bricks)
 {
@@ -254,6 +255,56 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(const Settings& settings)
     return stateGroup;
 }
 
+vsg::ref_ptr<vsg::Node> writeBricks(Levels& levels, const vsg::Path filename, Settings& settings)
+{
+    auto deliminator = vsg::Path::preferred_separator;
+    vsg::Path path = vsg::filePath(filename);
+    vsg::Path name = vsg::simpleFilename(filename);
+    vsg::Path ext = settings.extension;
+
+    std::basic_ostringstream<vsg::Path::value_type> str;
+
+    double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
+    double levelBrickSize = brickSize;
+
+    vsg::ref_ptr<vsg::Node> last;
+
+    for(auto& bricks : levels)
+    {
+        for(auto& [key, brick] : bricks)
+        {
+            str.clear();
+            str.str("");
+            if (path) str << path << deliminator;
+            str << name << deliminator << key.w << deliminator << key.z << deliminator << key.y;
+            vsg::Path brick_path(str.str());
+
+            str.clear();
+            str.str("");
+            str << key.x << ext;
+            vsg::Path brick_filename(str.str());
+
+            vsg::makeDirectory(brick_path);
+
+            vsg::Path full_path = brick_path/brick_filename;
+
+            float brickPrecision = static_cast<float>(levelBrickSize / 256.0);
+            vsg::vec2 pointSize(brickPrecision, brickPrecision);
+
+            vsg::vec4 originScale(static_cast<double>(key.x) * levelBrickSize, static_cast<double>(key.y) * levelBrickSize, static_cast<double>(key.z) * levelBrickSize, levelBrickSize);
+            auto tile = brick->createRendering(originScale, pointSize);
+            vsg::write(tile, full_path);
+
+            last = tile;
+
+            // std::cout<<"path = "<<brick_path<<"\tfilename = "<<brick_filename<<std::endl;
+        }
+        levelBrickSize *= 2.0;
+    }
+
+    return last;
+}
+
 vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& settings)
 {
     double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
@@ -294,60 +345,16 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& setti
     std::cout<<"keyBounds "<<keyBounds<<std::endl;
     std::cout<<"biggest brick "<<biggestBrick<<std::endl;
 
-    vsg::ref_ptr<vsg::Node> root;
+
     if (settings.write)
     {
-        auto deliminator = vsg::Path::preferred_separator;
-        vsg::Path path = vsg::filePath(filename);
-        vsg::Path name = vsg::simpleFilename(filename);
-        vsg::Path ext = settings.extension;
-
-        std::basic_ostringstream<vsg::Path::value_type> str;
-
-        double levelBrickSize = brickSize;
-
+        vsg::ref_ptr<vsg::Node> last = writeBricks(levels, filename, settings);
         auto stateGroup = createStateGroup(settings);
-        root = stateGroup;
-
-        vsg::ref_ptr<vsg::Node> last;
-
-        for(auto& bricks : levels)
-        {
-            for(auto& [key, brick] : bricks)
-            {
-                str.clear();
-                str.str("");
-                if (path) str << path << deliminator;
-                str << name << deliminator << key.w << deliminator << key.z << deliminator << key.y;
-                vsg::Path brick_path(str.str());
-
-                str.clear();
-                str.str("");
-                str << key.x << ext;
-                vsg::Path brick_filename(str.str());
-
-                vsg::makeDirectory(brick_path);
-
-                vsg::Path full_path = brick_path/brick_filename;
-
-                float brickPrecision = static_cast<float>(levelBrickSize / 256.0);
-                vsg::vec2 pointSize(brickPrecision, brickPrecision);
-
-                vsg::vec4 originScale(static_cast<double>(key.x) * levelBrickSize, static_cast<double>(key.y) * levelBrickSize, static_cast<double>(key.z) * levelBrickSize, levelBrickSize);
-                auto tile = brick->createRendering(originScale, pointSize);
-                vsg::write(tile, full_path);
-
-                last = tile;
-
-                // std::cout<<"path = "<<brick_path<<"\tfilename = "<<brick_filename<<std::endl;
-            }
-            levelBrickSize *= 2.0;
-        }
-
         stateGroup->addChild(last);
+        return stateGroup;
     }
 
-    return root;
+    return {};
 }
 
 
