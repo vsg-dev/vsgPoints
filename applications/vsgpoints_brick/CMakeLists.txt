@@ -4,7 +4,7 @@ set(SOURCES
 
 add_executable(vsgpoints_brick ${SOURCES})
 
-target_link_libraries(vsgpoints_brick vsg::vsg)
+target_link_libraries(vsgpoints_brick vsg::vsg vsgPoints::vsgPoints)
 
 if (vsgXchange_FOUND)
     target_compile_definitions(vsgpoints_brick PRIVATE vsgXchange_FOUND)

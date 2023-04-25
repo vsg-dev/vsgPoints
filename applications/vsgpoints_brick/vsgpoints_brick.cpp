@@ -4,6 +4,8 @@
 #    include <vsgXchange/all.h>
 #endif
 
+#include <vsgPoints/BrickBuilder.h>
+
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -56,9 +58,13 @@ public:
 
     vsg::ref_ptr<vsg::Node> createRendering(const vsg::vec4& originScale)
     {
+        auto vertices = vsg::ubvec3Array::create(points.size(), vsg::Data::Properties(VK_FORMAT_R8G8B8_UNORM));
+        auto normals = vsg::vec3Value::create(vsg::vec3(0.0f, 0.0f, 1.0f));
+        auto colors = vsg::ubvec3Array::create(points.size(), vsg::Data::Properties(VK_FORMAT_R8G8B8_UNORM));
         auto positionScale = vsg::vec4Value::create(originScale);
-        auto vertices = vsg::ubvec3Array::create(points.size());
-        auto colors = vsg::ubvec3Array::create(points.size());
+
+        normals->properties.format = VK_FORMAT_R32G32B32_SFLOAT;
+        positionScale->properties.format = VK_FORMAT_R32G32B32A32_SFLOAT;
 
         auto vertex_itr = vertices->begin();
         auto color_itr = colors->begin();
@@ -70,7 +76,7 @@ public:
 
         // set up vertexDraw that will do the rendering.
         auto vertexDraw = vsg::VertexDraw::create();
-        vertexDraw->assignArrays({positionScale, vertices, colors});
+        vertexDraw->assignArrays({vertices, normals, colors, positionScale});
         vertexDraw->vertexCount = points.size();
         vertexDraw->instanceCount = 1;
 
@@ -86,18 +92,23 @@ struct Settings
     size_t numPointsPerBlock = 10000;
     double precision = 0.001;
     double bits = 8.0;
-    bool allocate = false;
     bool write = false;
     vsg::Path extension = ".vsgb";
+    vsg::ref_ptr<vsg::Options> options;
+    vsg::dbox bound;
 };
 
 using Key = vsg::ivec4;
 using Bricks = std::map<Key, vsg::ref_ptr<Brick>>;
 
-bool readBricks(const vsg::Path filename, const Settings& settings, Bricks& bricks)
+bool readBricks(const vsg::Path filename, Settings& settings, Bricks& bricks)
 {
+    auto& bound = settings.bound;
+    bound.reset();
+
     std::ifstream fin(filename, std::ios::in | std::ios::binary);
     if (!fin) return false;
+
 
     fin.seekg(0, fin.end);
     size_t fileSize = fin.tellg();
@@ -129,6 +140,8 @@ bool readBricks(const vsg::Path filename, const Settings& settings, Bricks& bric
         {
             if (numPointsToRead==0) break;
             --numPointsToRead;
+
+            bound.add(point.v);
 
             vsg::dvec3 scaled_v = point.v * multiplier;
             vsg::dvec3 rounded_v = {std::round(scaled_v.x), std::round(scaled_v.y), std::round(scaled_v.z)};
@@ -182,7 +195,68 @@ bool generateLevel(Bricks& source, Bricks& destination)
     return !destination.empty();
 }
 
-vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Settings& settings)
+vsg::ref_ptr<vsg::StateGroup> createStateGroup(const Settings& settings)
+{
+    auto textureData = vsgPoints::createParticleImage(64);
+    auto shaderSet = vsgPoints::createPointsFlatShadedShaderSet(settings.options);
+    auto config = vsg::GraphicsPipelineConfig::create(shaderSet);
+    bool blending = false;
+
+    auto& defines = config->shaderHints->defines;
+    defines.insert("VSG_POINT_SPRITE");
+
+    config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::ubvec3), VK_FORMAT_R8G8B8_UNORM);
+    config->enableArray("vsg_Normal", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec3), VK_FORMAT_R32G32B32_SFLOAT);
+    config->enableArray("vsg_Color", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::ubvec3), VK_FORMAT_R8G8B8_UNORM);
+    config->enableArray("vsg_PositionScale", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec4), VK_FORMAT_R32G32B32A32_SFLOAT);
+
+    vsg::Descriptors descriptors;
+    if (textureData)
+    {
+        auto sampler = vsg::Sampler::create();
+        sampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        config->assignTexture(descriptors, "diffuseMap", textureData, sampler);
+    }
+
+    float interval = 0.001f;
+    auto pointSize = vsg::vec2Value::create();
+    pointSize->value().set(interval*3.0f, interval);
+    config->assignUniform(descriptors, "pointSize", pointSize);
+
+    auto mat = vsg::PhongMaterialValue::create();
+    mat->value().alphaMask = 1.0f;
+    mat->value().alphaMaskCutoff = 0.0025f;
+    config->assignUniform(descriptors, "material", mat);
+
+    auto vdsl = vsg::ViewDescriptorSetLayout::create();
+    config->additionalDescriptorSetLayout = vdsl;
+
+    config->colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
+        {blending, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
+
+    config->inputAssemblyState->topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+
+    config->init();
+
+    auto descriptorSet = vsg::DescriptorSet::create(config->descriptorSetLayout, descriptors);
+    auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, config->layout, 0, descriptorSet);
+
+    // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
+    auto stateGroup = vsg::StateGroup::create();
+    stateGroup->add(config->bindGraphicsPipeline);
+    stateGroup->add(bindDescriptorSet);
+
+    // assign any custom ArrayState that may be required.
+    stateGroup->prototypeArrayState = shaderSet->getSuitableArrayState(config->shaderHints->defines);
+
+    auto bindViewDescriptorSets = vsg::BindViewDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, config->layout, 1);
+    stateGroup->add(bindViewDescriptorSets);
+
+    return stateGroup;
+}
+
+vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& settings)
 {
     double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
 
@@ -222,6 +296,7 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
     std::cout<<"keyBounds "<<keyBounds<<std::endl;
     std::cout<<"biggest brick "<<biggestBrick<<std::endl;
 
+    vsg::ref_ptr<vsg::Node> root;
     if (settings.write)
     {
         auto deliminator = vsg::Path::preferred_separator;
@@ -232,6 +307,11 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
         std::basic_ostringstream<vsg::Path::value_type> str;
 
         double levelBrickSize = brickSize;
+
+        auto stateGroup = createStateGroup(settings);
+        root = stateGroup;
+
+        vsg::ref_ptr<vsg::Node> last;
 
         for(auto& bricks : levels)
         {
@@ -256,15 +336,17 @@ vsg::ref_ptr<vsg::Object> processRawData(const vsg::Path filename, const Setting
                 auto tile = brick->createRendering(originScale);
                 vsg::write(tile, full_path);
 
+                last = tile;
+
                 // std::cout<<"path = "<<brick_path<<"\tfilename = "<<brick_filename<<std::endl;
             }
             levelBrickSize *= 2.0;
         }
+
+        stateGroup->addChild(last);
     }
 
-
-    vsg::ref_ptr<vsg::Objects> objects;
-    return objects;
+    return root;
 }
 
 
@@ -297,12 +379,12 @@ int main(int argc, char** argv)
     settings.numPointsPerBlock = arguments.value<size_t>(10000, "-b");
     settings.precision = arguments.value<double>(0.001, "-p");
     settings.bits = arguments.value<double>(8, "--bits");
-    settings.allocate = arguments.read("-a");
     settings.write = arguments.read("-w");
+    settings.options = options;
 
     auto outputFilename = arguments.value<vsg::Path>("", "-o");
 
-    auto objects = vsg::Objects::create();
+    auto group = vsg::Group::create();
 
 
     vsg::Path filename;
@@ -311,16 +393,69 @@ int main(int argc, char** argv)
         std::cout<<"filename = "<<filename<<std::endl;
         if (auto found_filename = vsg::findFile(filename, options))
         {
-            if (auto object = processRawData(found_filename, settings))
+            if (auto scene = processRawData(found_filename, settings))
             {
-                objects->addChild(object);
+                group->addChild(scene);
             }
         }
     }
 
-    if (outputFilename)
+    if (outputFilename && !group->children.empty())
     {
-        vsg::write(objects, outputFilename, options);
+        if (group->children.size()==1) vsg::write(group->children[0], outputFilename, options);
+        else vsg::write(group, outputFilename, options);
+    }
+
+    if (arguments.read("-r") && !group->children.empty() && settings.bound.valid())
+    {
+        auto windowTraits = vsg::WindowTraits::create();
+        windowTraits->debugLayer = arguments.read({"--debug", "-d"});
+        windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
+
+        std::cout<<"windowTraits->debugLayer = "<<windowTraits->debugLayer<<std::endl;
+        std::cout<<"windowTraits->apiDumpLayer = "<<windowTraits->apiDumpLayer<<std::endl;
+
+        auto viewer = vsg::Viewer::create();
+        auto window = vsg::Window::create(windowTraits);
+        if (!window)
+        {
+            std::cout << "Could not create windows." << std::endl;
+            return 1;
+        }
+
+        viewer->addWindow(window);
+
+        auto& bound = settings.bound;
+        vsg::dsphere bs((bound.max + bound.min) * 0.5, vsg::length(bound.max - bound.min)*0.5);
+        double nearFarRatio = 0.001;
+
+        auto lookAt = vsg::LookAt::create(bs.center - vsg::dvec3(0.0, -bs.radius * 3.5, 0.0), bs.center, vsg::dvec3(0.0, 0.0, 1.0));
+        auto perspective  = vsg::Perspective::create(30.0, static_cast<double>(window->extent2D().width) / static_cast<double>(window->extent2D().height), nearFarRatio * bs.radius, bs.radius * 4.5);
+
+        auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
+
+        // add close handler to respond the close window button and pressing escape
+        viewer->addEventHandler(vsg::CloseHandler::create(viewer));
+        viewer->addEventHandler(vsg::Trackball::create(camera));
+
+        auto commandGraph = vsg::createCommandGraphForView(window, camera, group);
+        viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
+
+        viewer->compile();
+
+        // rendering main loop
+        while (viewer->advanceToNextFrame())
+        {
+            // pass any events into EventHandlers assigned to the Viewer
+            viewer->handleEvents();
+
+            viewer->update();
+
+            viewer->recordAndSubmit();
+
+            viewer->present();
+        }
+
     }
 
     return 0;
