@@ -327,7 +327,6 @@ vsg::ref_ptr<vsg::Node> subtile(Levels::reverse_iterator level_itr, Levels::reve
         std::array<vsg::ref_ptr<vsg::Node>, 8> children;
         size_t num_children = 0;
 
-
         Key subkey{key.x * 2, key.y * 2, key.z * 2, key.w / 2};
 
         if (auto child = subtile(next_itr, end_itr, subkey)) children[num_children++] = child;
@@ -340,10 +339,44 @@ vsg::ref_ptr<vsg::Node> subtile(Levels::reverse_iterator level_itr, Levels::reve
         if (auto child = subtile(next_itr, end_itr, subkey+Key(1, 1, 1, 0))) children[num_children++] = child;
 
         std::cout<<"   "<<key<<" "<<brick<<" num_children = "<<num_children<<std::endl;
+
+        vsg::Path path = vsg::make_string("test/",key.w,"/",key.z,"/",key.y);
+        vsg::Path filename = vsg::make_string(key.x, ".vsgt");
+        vsg::Path full_path = path/filename;
+
+        vsg::makeDirectory(path);
+
+        if (num_children==1)
+        {
+            write(children[0], full_path);
+        }
+        else
+        {
+            auto group = vsg::Group::create();
+            for(size_t i = 0; i < num_children; ++i)
+            {
+                group->addChild(children[i]);
+            }
+            write(group, full_path);
+        }
+
+        auto brick_node = vsg::VertexDraw::create();
+        vsg::dsphere bound;
+
+        auto plod = vsg::PagedLOD::create();
+        plod->bound = bound;
+        plod->children[0] = vsg::PagedLOD::Child{0.25, {}}; // external child visible when it's bound occupies more than 1/4 of the height of the window
+        plod->children[1] = vsg::PagedLOD::Child{0.0, brick_node}; // visible always
+        plod->filename = full_path;
+
+        return plod;
     }
     else
     {
         std::cout<<"   "<<key<<" "<<brick<<" leaf"<<std::endl;
+
+        auto leaf = vsg::VertexDraw::create();
+        return leaf;
     }
 
     return vsg::Node::create();
