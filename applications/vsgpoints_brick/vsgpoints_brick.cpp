@@ -306,8 +306,53 @@ vsg::ref_ptr<vsg::Node> writeBricks(Levels& levels, const vsg::Path filename, Se
     return last;
 }
 
+vsg::ref_ptr<vsg::Node> subtile(Levels::reverse_iterator level_itr, Levels::reverse_iterator end_itr, Key key)
+{
+    if (level_itr == end_itr) return {};
+
+    Bricks& bricks = *level_itr;
+    auto itr = bricks.find(key);
+    if (itr == bricks.end())
+    {
+        //std::cout<<"   "<<key<<" null "<<std::endl;
+        return {};
+    }
+
+    auto& brick = (itr->second);
+    auto next_itr = level_itr;
+    ++next_itr;
+
+    if (next_itr != end_itr)
+    {
+        std::array<vsg::ref_ptr<vsg::Node>, 8> children;
+        size_t num_children = 0;
+
+
+        Key subkey{key.x * 2, key.y * 2, key.z * 2, key.w / 2};
+
+        if (auto child = subtile(next_itr, end_itr, subkey)) children[num_children++] = child;
+        if (auto child = subtile(next_itr, end_itr, subkey+Key(1, 0, 0, 0))) children[num_children++] = child;
+        if (auto child = subtile(next_itr, end_itr, subkey+Key(0, 1, 0, 0))) children[num_children++] = child;
+        if (auto child = subtile(next_itr, end_itr, subkey+Key(1, 1, 0, 0))) children[num_children++] = child;
+        if (auto child = subtile(next_itr, end_itr, subkey+Key(0, 0, 1, 0))) children[num_children++] = child;
+        if (auto child = subtile(next_itr, end_itr, subkey+Key(1, 0, 1, 0))) children[num_children++] = child;
+        if (auto child = subtile(next_itr, end_itr, subkey+Key(0, 1, 1, 0))) children[num_children++] = child;
+        if (auto child = subtile(next_itr, end_itr, subkey+Key(1, 1, 1, 0))) children[num_children++] = child;
+
+        std::cout<<"   "<<key<<" "<<brick<<" num_children = "<<num_children<<std::endl;
+    }
+    else
+    {
+        std::cout<<"   "<<key<<" "<<brick<<" leaf"<<std::endl;
+    }
+
+    return vsg::Node::create();
+}
+
 vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, const vsg::Path filename, Settings& settings)
 {
+    if (levels.empty()) return {};
+
     auto stateGroup = createStateGroup(settings);
 
     auto deliminator = vsg::Path::preferred_separator;
@@ -322,9 +367,41 @@ vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, const vsg::Path filename,
 
     std::cout<<"rootBrickSize  = "<<rootBrickSize<<std::endl;
 
-    for(auto itr = levels.rbegin(); itr != levels.rend(); ++itr)
+    // If only one level is present then PagedLOD not required so just add all the levels bricks to the StateGroup
+    if (levels.size() == 1)
     {
-        std::cout<<"   "<<itr->size()<<std::endl;
+        double levelBrickSize = rootBrickSize;
+
+        float brickPrecision = static_cast<float>(levelBrickSize / 256.0);
+        vsg::vec2 pointSize(brickPrecision, brickPrecision);
+
+        for(auto& [key, brick] : levels.back())
+        {
+             vsg::vec4 originScale(static_cast<double>(key.x) * levelBrickSize, static_cast<double>(key.y) * levelBrickSize, static_cast<double>(key.z) * levelBrickSize, levelBrickSize);
+
+            auto tile = brick->createRendering(originScale, pointSize);
+            stateGroup->addChild(tile);
+        }
+
+        return stateGroup;
+    }
+
+    // more than 1 level so create a PagedLOD hierarchy.
+
+    auto current_itr = levels.rbegin();
+
+    // root tile
+    auto& root_level = *current_itr;
+    std::cout<<"root level " << root_level.size()<<std::endl;
+
+    for(auto& [key, brick] : root_level)
+    {
+        std::cout<<"root key = "<<key<<" "<<brick<<std::endl;
+        if (auto child = subtile(current_itr, levels.rend(), key))
+        {
+            std::cout<<"root child "<<child<<std::endl;
+            stateGroup->addChild(child);
+        }
     }
 
     return stateGroup;
