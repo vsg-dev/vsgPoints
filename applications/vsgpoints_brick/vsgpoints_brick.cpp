@@ -60,6 +60,7 @@ struct Settings
     vsg::Path path;
     vsg::Path extension = ".vsgb";
     vsg::ref_ptr<vsg::Options> options;
+    vsg::dvec3 offset;
     vsg::dbox bound;
 };
 
@@ -106,14 +107,16 @@ public:
         double brickSize = brickPrecision * 256.0;
         double halfSize = brickSize*0.5;
 
-        vsg::dvec3 origin(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize);
-        bound.center.set(origin.x + halfSize, origin.y + halfSize, origin.z + halfSize);
+        vsg::dvec3 position(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize);
+        position -= settings.offset;
+
+        bound.center.set(position.x + halfSize, position.y + halfSize, position.z + halfSize);
         bound.radius = brickSize*std::sqrt(3.0);
 
         vsg::vec2 pointSize(brickPrecision*3.0, brickPrecision);
-        vsg::vec4 originScale(origin.x, origin.y, origin.z, brickSize);
+        vsg::vec4 positionScale(position.x, position.y, position.z, brickSize);
 
-        return createRendering(originScale, pointSize);
+        return createRendering(positionScale, pointSize);
     }
 
 
@@ -466,6 +469,11 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& setti
         return {};
     }
 
+    if (settings.bound.valid())
+    {
+        settings.offset = (settings.bound.max + settings.bound.min) * 0.5;
+    }
+
     std::cout<<"After reading data "<<first_level.size()<<std::endl;
 
     size_t biggestBrick = 0;
@@ -492,18 +500,25 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& setti
     std::cout<<"biggest brick "<<biggestBrick<<std::endl;
 
 
+    auto transform = vsg::MatrixTransform::create();
+    transform->matrix = vsg::translate(settings.offset);
+
     if (settings.plod)
     {
-        return createPagedLOD(levels, settings);
+        if (auto model = createPagedLOD(levels, settings))
+        {
+            transform->addChild(model);
+        }
+        return transform;
     }
     else if (settings.write)
     {
         vsg::ref_ptr<vsg::Node> last = writeBricks(levels, filename, settings);
         auto stateGroup = createStateGroup(settings);
         stateGroup->addChild(last);
-        return stateGroup;
+        transform->addChild(stateGroup);
+        return transform;
     }
-
 
     return {};
 }
