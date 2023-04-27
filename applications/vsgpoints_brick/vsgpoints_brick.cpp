@@ -96,6 +96,7 @@ struct Settings
     double bits = 8.0;
     bool write = false;
     bool plod = false;
+    vsg::Path path;
     vsg::Path extension = ".vsgb";
     vsg::ref_ptr<vsg::Options> options;
     vsg::dbox bound;
@@ -306,7 +307,7 @@ vsg::ref_ptr<vsg::Node> writeBricks(Levels& levels, const vsg::Path filename, Se
     return last;
 }
 
-vsg::ref_ptr<vsg::Node> subtile(Levels::reverse_iterator level_itr, Levels::reverse_iterator end_itr, Key key)
+vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator level_itr, Levels::reverse_iterator end_itr, Key key)
 {
     if (level_itr == end_itr) return {};
 
@@ -329,19 +330,19 @@ vsg::ref_ptr<vsg::Node> subtile(Levels::reverse_iterator level_itr, Levels::reve
 
         Key subkey{key.x * 2, key.y * 2, key.z * 2, key.w / 2};
 
-        if (auto child = subtile(next_itr, end_itr, subkey)) children[num_children++] = child;
-        if (auto child = subtile(next_itr, end_itr, subkey+Key(1, 0, 0, 0))) children[num_children++] = child;
-        if (auto child = subtile(next_itr, end_itr, subkey+Key(0, 1, 0, 0))) children[num_children++] = child;
-        if (auto child = subtile(next_itr, end_itr, subkey+Key(1, 1, 0, 0))) children[num_children++] = child;
-        if (auto child = subtile(next_itr, end_itr, subkey+Key(0, 0, 1, 0))) children[num_children++] = child;
-        if (auto child = subtile(next_itr, end_itr, subkey+Key(1, 0, 1, 0))) children[num_children++] = child;
-        if (auto child = subtile(next_itr, end_itr, subkey+Key(0, 1, 1, 0))) children[num_children++] = child;
-        if (auto child = subtile(next_itr, end_itr, subkey+Key(1, 1, 1, 0))) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 0, 0, 0))) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 1, 0, 0))) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 1, 0, 0))) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 0, 1, 0))) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 0, 1, 0))) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 1, 1, 0))) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 1, 1, 0))) children[num_children++] = child;
 
         std::cout<<"   "<<key<<" "<<brick<<" num_children = "<<num_children<<std::endl;
 
-        vsg::Path path = vsg::make_string("test/",key.w,"/",key.z,"/",key.y);
-        vsg::Path filename = vsg::make_string(key.x, ".vsgt");
+        vsg::Path path = vsg::make_string(settings.path,"/",key.w,"/",key.z,"/",key.y);
+        vsg::Path filename = vsg::make_string(key.x, settings.extension);
         vsg::Path full_path = path/filename;
 
         vsg::makeDirectory(path);
@@ -382,16 +383,11 @@ vsg::ref_ptr<vsg::Node> subtile(Levels::reverse_iterator level_itr, Levels::reve
     return vsg::Node::create();
 }
 
-vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, const vsg::Path filename, Settings& settings)
+vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, Settings& settings)
 {
     if (levels.empty()) return {};
 
     auto stateGroup = createStateGroup(settings);
-
-    auto deliminator = vsg::Path::preferred_separator;
-    vsg::Path path = vsg::filePath(filename);
-    vsg::Path name = vsg::simpleFilename(filename);
-    vsg::Path ext = settings.extension;
 
     std::basic_ostringstream<vsg::Path::value_type> str;
 
@@ -430,7 +426,7 @@ vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, const vsg::Path filename,
     for(auto& [key, brick] : root_level)
     {
         std::cout<<"root key = "<<key<<" "<<brick<<std::endl;
-        if (auto child = subtile(current_itr, levels.rend(), key))
+        if (auto child = subtile(settings, current_itr, levels.rend(), key))
         {
             std::cout<<"root child "<<child<<std::endl;
             stateGroup->addChild(child);
@@ -483,7 +479,7 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& setti
 
     if (settings.plod)
     {
-        return createPagedLOD(levels, filename, settings);
+        return createPagedLOD(levels, settings);
     }
     else if (settings.write)
     {
@@ -542,6 +538,12 @@ int main(int argc, char** argv)
         std::cout<<"filename = "<<filename<<std::endl;
         if (auto found_filename = vsg::findFile(filename, options))
         {
+            if (outputFilename)
+            {
+                settings.path = vsg::filePath(outputFilename)/vsg::simpleFilename(outputFilename);
+                settings.extension = vsg::fileExtension(outputFilename);
+            }
+
             if (auto scene = processRawData(found_filename, settings))
             {
                 group->addChild(scene);
