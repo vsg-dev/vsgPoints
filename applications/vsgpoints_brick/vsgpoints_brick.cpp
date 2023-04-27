@@ -100,14 +100,18 @@ public:
         return vertexDraw;
     }
 
-    vsg::ref_ptr<vsg::Node> createRendering(Settings& settings, Key key)
+    vsg::ref_ptr<vsg::Node> createRendering(Settings& settings, Key key, vsg::dsphere& bound)
     {
         double brickPrecision = settings.precision * static_cast<double>(key.w);
         double brickSize = brickPrecision * 256.0;
+        double halfSize = brickSize*0.5;
 
-        vsg::vec2 pointSize(brickPrecision, brickPrecision);
+        vsg::dvec3 origin(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize);
+        bound.center.set(origin.x + halfSize, origin.y + halfSize, origin.z + halfSize);
+        bound.radius = brickSize*std::sqrt(3.0);
 
-        vsg::vec4 originScale(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize, brickSize);
+        vsg::vec2 pointSize(brickPrecision*3.0, brickPrecision);
+        vsg::vec4 originScale(origin.x, origin.y, origin.z, brickSize);
 
         return createRendering(originScale, pointSize);
     }
@@ -335,6 +339,8 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
         return {};
     }
 
+    vsg::dsphere bound;
+
     auto& brick = (itr->second);
     auto next_itr = level_itr;
     ++next_itr;
@@ -362,7 +368,6 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
 
         vsg::makeDirectory(path);
 
-        std::cout<<"   "<<key<<" "<<brick<<" num_children = "<<num_children<<" full_path = "<<full_path<<std::endl;
 
         if (num_children==1)
         {
@@ -378,8 +383,9 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
             write(group, full_path);
         }
 
-        vsg::dsphere bound;
-        auto brick_node = brick->createRendering(settings, key);
+        auto brick_node = brick->createRendering(settings, key, bound);
+
+        std::cout<<"   "<<key<<" "<<brick<<" num_children = "<<num_children<<" full_path = "<<full_path<<", bound = "<<bound<<std::endl;
 
         auto plod = vsg::PagedLOD::create();
         plod->bound = bound;
@@ -391,9 +397,8 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
     }
     else
     {
-        std::cout<<"   "<<key<<" "<<brick<<" leaf"<<std::endl;
-
-        return brick->createRendering(settings, key);
+        return brick->createRendering(settings, key, bound);
+        std::cout<<"   "<<key<<" "<<brick<<" leaf, bound "<<bound<<std::endl;
     }
 
     return vsg::Node::create();
@@ -415,9 +420,10 @@ vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, Settings& settings)
     // If only one level is present then PagedLOD not required so just add all the levels bricks to the StateGroup
     if (levels.size() == 1)
     {
+        vsg::dsphere bound;
         for(auto& [key, brick] : levels.back())
         {
-            auto tile = brick->createRendering(settings, key);
+            auto tile = brick->createRendering(settings, key, bound);
             stateGroup->addChild(tile);
         }
 
