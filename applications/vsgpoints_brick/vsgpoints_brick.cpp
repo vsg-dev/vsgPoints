@@ -50,6 +50,21 @@ std::string format_number(T v)
     return s.str();
 }
 
+struct Settings
+{
+    size_t numPointsPerBlock = 10000;
+    double precision = 0.001;
+    double bits = 8.0;
+    bool write = false;
+    bool plod = false;
+    vsg::Path path;
+    vsg::Path extension = ".vsgb";
+    vsg::ref_ptr<vsg::Options> options;
+    vsg::dbox bound;
+};
+
+using Key = vsg::ivec4;
+
 class Brick : public vsg::Inherit<vsg::Object, Brick>
 {
 public:
@@ -84,25 +99,25 @@ public:
 
         return vertexDraw;
     }
+
+    vsg::ref_ptr<vsg::Node> createRendering(Settings& settings, Key key)
+    {
+        double brickPrecision = settings.precision * static_cast<double>(key.w);
+        double brickSize = brickPrecision * 256.0;
+
+        vsg::vec2 pointSize(brickPrecision, brickPrecision);
+
+        vsg::vec4 originScale(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize, brickSize);
+
+        return createRendering(originScale, pointSize);
+    }
+
+
 protected:
     virtual ~Brick() {}
 };
 
 
-struct Settings
-{
-    size_t numPointsPerBlock = 10000;
-    double precision = 0.001;
-    double bits = 8.0;
-    bool write = false;
-    bool plod = false;
-    vsg::Path path;
-    vsg::Path extension = ".vsgb";
-    vsg::ref_ptr<vsg::Options> options;
-    vsg::dbox bound;
-};
-
-using Key = vsg::ivec4;
 using Bricks = std::map<Key, vsg::ref_ptr<Brick>>;
 using Levels = std::list<Bricks>;
 
@@ -307,6 +322,7 @@ vsg::ref_ptr<vsg::Node> writeBricks(Levels& levels, const vsg::Path filename, Se
     return last;
 }
 
+
 vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator level_itr, Levels::reverse_iterator end_itr, Key key)
 {
     if (level_itr == end_itr) return {};
@@ -339,13 +355,14 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
         if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 1, 1, 0))) children[num_children++] = child;
         if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 1, 1, 0))) children[num_children++] = child;
 
-        std::cout<<"   "<<key<<" "<<brick<<" num_children = "<<num_children<<std::endl;
 
         vsg::Path path = vsg::make_string(settings.path,"/",key.w,"/",key.z,"/",key.y);
         vsg::Path filename = vsg::make_string(key.x, settings.extension);
         vsg::Path full_path = path/filename;
 
         vsg::makeDirectory(path);
+
+        std::cout<<"   "<<key<<" "<<brick<<" num_children = "<<num_children<<" full_path = "<<full_path<<std::endl;
 
         if (num_children==1)
         {
@@ -361,8 +378,8 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
             write(group, full_path);
         }
 
-        auto brick_node = vsg::VertexDraw::create();
         vsg::dsphere bound;
+        auto brick_node = brick->createRendering(settings, key);
 
         auto plod = vsg::PagedLOD::create();
         plod->bound = bound;
@@ -376,8 +393,7 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
     {
         std::cout<<"   "<<key<<" "<<brick<<" leaf"<<std::endl;
 
-        auto leaf = vsg::VertexDraw::create();
-        return leaf;
+        return brick->createRendering(settings, key);
     }
 
     return vsg::Node::create();
@@ -399,16 +415,9 @@ vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, Settings& settings)
     // If only one level is present then PagedLOD not required so just add all the levels bricks to the StateGroup
     if (levels.size() == 1)
     {
-        double levelBrickSize = rootBrickSize;
-
-        float brickPrecision = static_cast<float>(levelBrickSize / 256.0);
-        vsg::vec2 pointSize(brickPrecision, brickPrecision);
-
         for(auto& [key, brick] : levels.back())
         {
-             vsg::vec4 originScale(static_cast<double>(key.x) * levelBrickSize, static_cast<double>(key.y) * levelBrickSize, static_cast<double>(key.z) * levelBrickSize, levelBrickSize);
-
-            auto tile = brick->createRendering(originScale, pointSize);
+            auto tile = brick->createRendering(settings, key);
             stateGroup->addChild(tile);
         }
 
