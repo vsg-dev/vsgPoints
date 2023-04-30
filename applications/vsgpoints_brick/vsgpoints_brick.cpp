@@ -10,6 +10,9 @@
 #include <sstream>
 #include <iomanip>
 
+#include <filesystem>
+#include <string_view>
+
 #pragma pack(1)
 
 struct VsgIOPoint
@@ -101,19 +104,42 @@ public:
         return vertexDraw;
     }
 
-    vsg::ref_ptr<vsg::Node> createRendering(Settings& settings, Key key, vsg::dsphere& bound)
+    vsg::ref_ptr<vsg::Node> createRendering(Settings& settings, Key key, vsg::dbox& bound)
     {
         double brickPrecision = settings.precision * static_cast<double>(key.w);
         double brickSize = brickPrecision * 256.0;
-        double halfSize = brickSize*0.5;
 
         vsg::dvec3 position(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize);
         position -= settings.offset;
 
+#if 0
+        double halfSize = brickSize*0.5;
         bound.center.set(position.x + halfSize, position.y + halfSize, position.z + halfSize);
         bound.radius = brickSize*std::sqrt(3.0);
+#else
+        //double halfSize = brickSize*0.5;
+        //bound.center.set(position.x + halfSize, position.y + halfSize, position.z + halfSize);
+        //bound.radius = brickSize*std::sqrt(3.0);
 
-        vsg::vec2 pointSize(brickPrecision*3.0, brickPrecision);
+        for(auto& point : points)
+        {
+            auto& v = point.v;
+            bound.add(position.x + brickPrecision * static_cast<double>(v.x),
+                      position.y + brickPrecision * static_cast<double>(v.y),
+                      position.z + brickPrecision * static_cast<double>(v.z));
+        }
+
+        //bound.center = (bb.min + bb.max) * 0.5;
+        //bound.radius = vsg::length(bb.max - bb.min);
+        // std::cout<<"   bb.min = "<<bb.min<<", "<<"bb.max = "<<bb.max<<", bound.center = "<<bound.center<<", radius = "<<bound.radius<<std::endl;
+
+        //bound.center.set(position.x + halfSize, position.y + halfSize, position.z + halfSize);
+        //bound.radius = brickSize*std::sqrt(3.0);
+        //std::cout<<"   final bound.center = "<<bound.center<<", radius = "<<bound.radius<<std::endl;
+#endif
+
+
+        vsg::vec2 pointSize(brickPrecision*2.0, brickPrecision);
         vsg::vec4 positionScale(position.x, position.y, position.z, brickSize);
 
         return createRendering(positionScale, pointSize);
@@ -330,7 +356,7 @@ vsg::ref_ptr<vsg::Node> writeBricks(Levels& levels, const vsg::Path filename, Se
 }
 
 
-vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator level_itr, Levels::reverse_iterator end_itr, Key key)
+vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator level_itr, Levels::reverse_iterator end_itr, Key key, vsg::dbox& bound, bool root = false)
 {
     if (level_itr == end_itr) return {};
 
@@ -341,8 +367,6 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
         //std::cout<<"   "<<key<<" null "<<std::endl;
         return {};
     }
-
-    vsg::dsphere bound;
 
     auto& brick = (itr->second);
     auto next_itr = level_itr;
@@ -355,14 +379,16 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
 
         Key subkey{key.x * 2, key.y * 2, key.z * 2, key.w / 2};
 
-        if (auto child = subtile(settings, next_itr, end_itr, subkey)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 0, 0, 0))) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 1, 0, 0))) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 1, 0, 0))) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 0, 1, 0))) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 0, 1, 0))) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 1, 1, 0))) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 1, 1, 0))) children[num_children++] = child;
+        vsg::dbox subtiles_bound;
+
+        if (auto child = subtile(settings, next_itr, end_itr, subkey, subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 0, 0, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 1, 0, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 1, 0, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 0, 1, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 0, 1, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 1, 1, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 1, 1, 0), subtiles_bound)) children[num_children++] = child;
 
 
         vsg::Path path = vsg::make_string(settings.path,"/",key.w,"/",key.z,"/",key.y);
@@ -386,20 +412,46 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
             write(group, full_path);
         }
 
-        auto brick_node = brick->createRendering(settings, key, bound);
+        vsg::dbox local_bound;
+        auto brick_node = brick->createRendering(settings, key, local_bound);
 
-        std::cout<<"   "<<key<<" "<<brick<<" num_children = "<<num_children<<" full_path = "<<full_path<<", bound = "<<bound<<std::endl;
+        // std::cout<<"   "<<key<<" "<<brick<<" num_children = "<<num_children<<" full_path = "<<full_path<<", bound = "<<bound<<std::endl;
 
+        double transition = 0.125;
         auto plod = vsg::PagedLOD::create();
-        plod->bound = bound;
-        plod->children[0] = vsg::PagedLOD::Child{0.25, {}}; // external child visible when it's bound occupies more than 1/4 of the height of the window
+        if (subtiles_bound.valid())
+        {
+            bound.add(subtiles_bound);
+            plod->bound.center = (subtiles_bound.min + subtiles_bound.max) * 0.5;
+            plod->bound.radius = vsg::length(subtiles_bound.max - subtiles_bound.min) * 0.5;
+
+            double brickPrecision = settings.precision * static_cast<double>(key.w);
+            double brickSize = brickPrecision * 256.0;
+
+            vsg::dvec3 subtilesSize = (subtiles_bound.max - subtiles_bound.min);
+            double maxSize = std::max(brickPrecision, std::max(std::max(subtilesSize.x, subtilesSize.y), subtilesSize.z));
+            transition *= (maxSize/brickSize);
+            // std::cout<<"maxSize = "<<maxSize<<", brickSize = "<<brickSize<<", ratio = "<<maxSize/brickSize<<std::endl;
+        }
+
+        plod->children[0] = vsg::PagedLOD::Child{transition, {}}; // external child visible when it's bound occupies more than 1/4 of the height of the window
         plod->children[1] = vsg::PagedLOD::Child{0.0, brick_node}; // visible always
-        plod->filename = full_path;
+
+        if (root)
+        {
+            plod->filename = full_path;
+        }
+        else
+        {
+            plod->filename = vsg::Path("../../../..")/full_path;
+        }
+
 
         return plod;
     }
     else
     {
+
         return brick->createRendering(settings, key, bound);
         std::cout<<"   "<<key<<" "<<brick<<" leaf, bound "<<bound<<std::endl;
     }
@@ -423,7 +475,7 @@ vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, Settings& settings)
     // If only one level is present then PagedLOD not required so just add all the levels bricks to the StateGroup
     if (levels.size() == 1)
     {
-        vsg::dsphere bound;
+        vsg::dbox bound;
         for(auto& [key, brick] : levels.back())
         {
             auto tile = brick->createRendering(settings, key, bound);
@@ -444,7 +496,8 @@ vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, Settings& settings)
     for(auto& [key, brick] : root_level)
     {
         std::cout<<"root key = "<<key<<" "<<brick<<std::endl;
-        if (auto child = subtile(settings, current_itr, levels.rend(), key))
+        vsg::dbox bound;
+        if (auto child = subtile(settings, current_itr, levels.rend(), key, bound, true))
         {
             std::cout<<"root child "<<child<<std::endl;
             stateGroup->addChild(child);
@@ -522,7 +575,6 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& setti
 
     return {};
 }
-
 
 int main(int argc, char** argv)
 {
