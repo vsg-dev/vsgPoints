@@ -16,6 +16,8 @@ layout(location = 2) in vec4 vsg_Color;
 layout(location = 3) in vec4 vsg_PositionScale;
 #endif
 
+layout(location = 4) in vec2 vsg_PointSize;
+
 layout(location = 0) out vec3 eyePos;
 layout(location = 1) out vec3 normalDir;
 layout(location = 2) out vec4 vertexColor;
@@ -26,12 +28,6 @@ layout(set = 1, binding = 1) uniform ViewportData
 {
     vec4 values[1];
 } viewportData;
-
-layout(binding = 9) uniform PointSize
-{
-    float size;
-    float minDistance;
-} pointSize;
 
 out gl_PerVertex{
     vec4 gl_Position;
@@ -56,8 +52,8 @@ void main()
     normalDir = (pc.modelView * normal).xyz;
     vertexColor = vsg_Color;
 
-    float dist = max(pointSize.minDistance, abs(eyePos.z));
+    float dist = max(vsg_PointSize[1], abs(eyePos.z));
     vec4 viewport = viewportData.values[0];
-    gl_PointSize = viewport[2] * (pointSize.size / dist);
+    gl_PointSize = viewport[2] * (vsg_PointSize[0] / dist);
 }
 

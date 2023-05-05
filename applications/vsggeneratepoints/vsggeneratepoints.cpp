@@ -31,6 +31,7 @@ vsg::ref_ptr<vsg::Node> createSimplePointScene(vsg::ref_ptr<vsg::vec3Array> vert
     arrays.push_back(normals);
     arrays.push_back(colors);
     arrays.push_back(vsg::vec4Value::create(positionScale));
+    arrays.push_back(pointSize);
 
     auto bindVertexBuffers = vsg::BindVertexBuffers::create();
     bindVertexBuffers->assignArrays(arrays);
@@ -52,6 +53,7 @@ vsg::ref_ptr<vsg::Node> createSimplePointScene(vsg::ref_ptr<vsg::vec3Array> vert
     config->enableArray("vsg_Normal", perVertexNormals ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec3));
     config->enableArray("vsg_Color", perVertexColors ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::ubvec4));
     config->enableArray("vsg_PositionScale", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec4));
+    config->enableArray("vsg_PointSize", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec2));
 
     vsg::Descriptors descriptors;
     if (textureData)
@@ -61,8 +63,6 @@ vsg::ref_ptr<vsg::Node> createSimplePointScene(vsg::ref_ptr<vsg::vec3Array> vert
         sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         config->assignTexture(descriptors, "diffuseMap", textureData, sampler);
     }
-
-    config->assignUniform(descriptors, "pointSize", pointSize);
 
     auto mat = vsg::PhongMaterialValue::create();
     mat->value().alphaMask = 1.0f;
