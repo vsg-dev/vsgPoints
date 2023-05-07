@@ -12,8 +12,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsgPoints/BrickBuilder.h>
 
-#include "shaders/assimp_flat_shaded_frag.cpp"
-#include "shaders/assimp_phong_frag.cpp"
+#include "shaders/standard_flat_shaded_frag.cpp"
+#include "shaders/standard_phong_frag.cpp"
 #include "shaders/brick_vert.cpp"
 
 #include <vsg/all.h>
@@ -58,8 +58,8 @@ vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsFlatShadedShaderSet(vsg::ref
     auto vertexShader = vsg::read_cast<vsg::ShaderStage>("shaders/brick.vert", options);
     if (!vertexShader) vertexShader = brick_vert(); // fallback to shaders/brick_vert.cpp
 
-    auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp_flat_shaded.frag", options);
-    if (!fragmentShader) fragmentShader = assimp_flat_shaded_frag();
+    auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/standard_flat_shaded.frag", options);
+    if (!fragmentShader) fragmentShader = standard_flat_shaded_frag();
 
     auto shaderSet = vsg::ShaderSet::create(vsg::ShaderStages{vertexShader, fragmentShader});
 
@@ -90,8 +90,8 @@ vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsPhongShaderSet(vsg::ref_ptr<
 
     auto vertexShader = vsg::read_cast<vsg::ShaderStage>("shaders/brick.vert", options);
     if (!vertexShader) vertexShader = brick_vert(); // fallback to shaders/brick_vert.cpp
-    auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/assimp_phong.frag", options);
-    if (!fragmentShader) fragmentShader = assimp_phong_frag();
+    auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/standard_phong.frag", options);
+    if (!fragmentShader) fragmentShader = standard_phong_frag();
 
     auto shaderSet = vsg::ShaderSet::create(vsg::ShaderStages{vertexShader, fragmentShader});
 
