@@ -54,6 +54,6 @@ void main()
 
     float dist = max(vsg_PointSize[1], abs(eyePos.z));
     vec4 viewport = viewportData.values[0];
-    gl_PointSize = viewport[2] * (vsg_PointSize[0] / dist);
+    gl_PointSize = viewport[3] * (vsg_PointSize[0] / dist);
 }
 
