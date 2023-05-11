@@ -579,22 +579,25 @@ int main(int argc, char** argv)
     if (size_t nodesBlockSize; arguments.read("--nodes", nodesBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_NODES, nodesBlockSize);
     if (size_t dataBlockSize; arguments.read("--data", dataBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_DATA, dataBlockSize);
 
-
-    std::cout<<"vsg::Allocator::instance()->allocatorType = "<<int(vsg::Allocator::instance()->allocatorType)<<std::endl;
-    std::cout<<"vsg::Allocator::instance()->getMemoryBlocks(vsg::ALLOCATOR_AFFINITY_OBJECTS)->blockSize = "<<
-        vsg::Allocator::instance()->getMemoryBlocks(vsg::ALLOCATOR_AFFINITY_OBJECTS)->blockSize<<std::endl;
-
     Settings settings;
     settings.numPointsPerBlock = arguments.value<size_t>(10000, "-b");
     settings.precision = arguments.value<double>(0.001, "-p");
-    settings.bits = arguments.value<uint32_t>(8, "--bits");
     settings.transition = arguments.value<float>(0.125f, "-t");
     settings.pointSize = arguments.value<float>(4.0f, "--ps");
     settings.options = options;
 
     auto outputFilename = arguments.value<vsg::Path>("", "-o");
 
+    settings.bits = arguments.value<uint32_t>(10, "--bits");
+    if (settings.bits != 8 && settings.bits != 10 && settings.bits != 16)
+    {
+        std::cout<<"Error: "<<settings.bits<<" not supported, valid values are 8, 10 and 16."<<std::endl;
+        return 1;
+    }
+
+
     auto group = vsg::Group::create();
+
 
 
     vsg::Path filename;
