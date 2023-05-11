@@ -508,7 +508,6 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& setti
 {
     double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
 
-    std::cout<<"sizeof(VsgIOPoint) = "<<sizeof(VsgIOPoint)<<std::endl;
     std::cout<<"brickSize = "<<brickSize<<std::endl;
 
     std::list<Bricks> levels(1);
@@ -595,10 +594,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-
     auto group = vsg::Group::create();
-
-
 
     vsg::Path filename;
     while(arguments.read("-i", filename))
