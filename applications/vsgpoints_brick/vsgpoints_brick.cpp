@@ -547,8 +547,6 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& setti
     std::cout<<"keyBounds "<<keyBounds<<std::endl;
     std::cout<<"biggest brick "<<biggestBrick<<std::endl;
 
-    std::cout<<"PackedVertex = "<<sizeof(PackedVertex)<<std::endl;
-
     auto transform = vsg::MatrixTransform::create();
     transform->matrix = vsg::translate(settings.offset);
 
