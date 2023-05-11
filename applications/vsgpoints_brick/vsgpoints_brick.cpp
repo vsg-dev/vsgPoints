@@ -58,8 +58,8 @@ struct Settings
     size_t numPointsPerBlock = 10000;
     double precision = 0.001;
     uint32_t bits = 8;
-    bool write = false;
-    bool plod = false;
+    float pointSize = 4.0f;
+    float transition = 0.125f;
     vsg::Path path;
     vsg::Path extension = ".vsgb";
     vsg::ref_ptr<vsg::Options> options;
@@ -158,7 +158,7 @@ public:
                       position.z + brickPrecision * static_cast<double>(v.z));
         }
 
-        vsg::vec2 pointSize(brickPrecision*4.0, brickPrecision);
+        vsg::vec2 pointSize(brickPrecision*settings.pointSize, brickPrecision);
         vsg::vec4 positionScale(position.x, position.y, position.z, brickSize);
 
         return createRendering(settings, positionScale, pointSize);
@@ -408,7 +408,7 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
 
         // std::cout<<"   "<<key<<" "<<brick<<" num_children = "<<num_children<<" full_path = "<<full_path<<", bound = "<<subtiles_bound<<std::endl;
 
-        double transition = 0.125;
+        double transition = settings.transition;
         auto plod = vsg::PagedLOD::create();
         if (subtiles_bound.valid())
         {
@@ -421,7 +421,9 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
 
             vsg::dvec3 subtilesSize = (subtiles_bound.max - subtiles_bound.min);
             double maxSize = std::max(brickPrecision, std::max(std::max(subtilesSize.x, subtilesSize.y), subtilesSize.z));
+
             transition *= (maxSize/brickSize);
+
             // std::cout<<"maxSize = "<<maxSize<<", brickSize = "<<brickSize<<", ratio = "<<maxSize/brickSize<<std::endl;
         }
         else
@@ -586,6 +588,8 @@ int main(int argc, char** argv)
     settings.numPointsPerBlock = arguments.value<size_t>(10000, "-b");
     settings.precision = arguments.value<double>(0.001, "-p");
     settings.bits = arguments.value<uint32_t>(8, "--bits");
+    settings.transition = arguments.value<float>(0.125f, "-t");
+    settings.pointSize = arguments.value<float>(4.0f, "--ps");
     settings.options = options;
 
     auto outputFilename = arguments.value<vsg::Path>("", "-o");
