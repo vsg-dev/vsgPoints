@@ -44,7 +44,7 @@ vsg_add_target_uninstall()
 
 vsg_add_option_maintainer(
     PREFIX vsgPoints
-    RCLEVEL VSGPOINTS_RELEASE_CANDIDATE
+    RCLEVEL ${VSGPOINTS_RELEASE_CANDIDATE}
 )
 
 # source directories for vsgPoints library
