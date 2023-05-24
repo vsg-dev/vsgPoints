@@ -42,10 +42,14 @@ vsg_add_target_docs(
 )
 vsg_add_target_uninstall()
 
-vsg_add_option_maintainer(
-    PREFIX vsgPoints
-    RCLEVEL VSGPOINTS_RELEASE_CANDIDATE
-)
+if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
+
+    vsg_add_option_maintainer(
+        PREFIX v
+        RCLEVEL ${VSGPOINTS_RELEASE_CANDIDATE}
+    )
+
+endif()
 
 # source directories for vsgPoints library
 add_subdirectory(src)
