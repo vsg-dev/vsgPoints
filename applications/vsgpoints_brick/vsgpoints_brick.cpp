@@ -4,7 +4,8 @@
 #    include <vsgXchange/all.h>
 #endif
 
-#include <vsgPoints/BrickBuilder.h>
+#include <vsgPoints/Brick.h>
+#include <vsgPoints/BrickShaderSet.h>
 
 #include <iostream>
 #include <sstream>
@@ -19,12 +20,6 @@ struct VsgIOPoint
 {
     vsg::dvec3 v;
     vsg::ubvec3 c;
-};
-
-struct PackedPoint
-{
-    vsg::usvec3 v;
-    vsg::ubvec4 c;
 };
 
 #pragma pack()
@@ -53,126 +48,8 @@ std::string format_number(T v)
     return s.str();
 }
 
-struct Settings
-{
-    size_t numPointsPerBlock = 10000;
-    double precision = 0.001;
-    uint32_t bits = 8;
-    float pointSize = 4.0f;
-    float transition = 0.125f;
-    vsg::Path path;
-    vsg::Path extension = ".vsgb";
-    vsg::ref_ptr<vsg::Options> options;
-    vsg::dvec3 offset;
-    vsg::dbox bound;
-};
 
-using Key = vsg::ivec4;
-
-class Brick : public vsg::Inherit<vsg::Object, Brick>
-{
-public:
-
-    std::vector<PackedPoint> points;
-
-    vsg::ref_ptr<vsg::Node> createRendering(const Settings& settings, const vsg::vec4& positionScale, const vsg::vec2& pointSize)
-    {
-        vsg::ref_ptr<vsg::Data> vertices;
-
-        auto normals = vsg::vec3Value::create(vsg::vec3(0.0f, 0.0f, 1.0f));
-        auto colors = vsg::ubvec4Array::create(points.size(), vsg::Data::Properties(VK_FORMAT_R8G8B8A8_UNORM));
-        auto positionScaleValue = vsg::vec4Value::create(positionScale);
-        auto pointSizeValue = vsg::vec2Value::create(pointSize);
-
-        normals->properties.format = VK_FORMAT_R32G32B32_SFLOAT;
-        positionScaleValue->properties.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        pointSizeValue->properties.format = VK_FORMAT_R32G32_SFLOAT;
-
-        if (settings.bits==8)
-        {
-            auto vertices_8bit = vsg::ubvec3Array::create(points.size(), vsg::Data::Properties(VK_FORMAT_R8G8B8_UNORM));
-            auto vertex_itr = vertices_8bit->begin();
-            auto color_itr = colors->begin();
-            for(auto& point : points)
-            {
-                (vertex_itr++)->set(static_cast<uint8_t>(point.v.x), static_cast<uint8_t>(point.v.y), static_cast<uint8_t>(point.v.z));
-                *(color_itr++) = point.c;
-            }
-
-            vertices = vertices_8bit;
-        }
-        else if (settings.bits==10)
-        {
-            auto vertices_10bit = vsg::uintArray::create(points.size(), vsg::Data::Properties(VK_FORMAT_A2R10G10B10_UNORM_PACK32));
-            auto vertex_itr = vertices_10bit->begin();
-            auto color_itr = colors->begin();
-            for(auto& point : points)
-            {
-                *(vertex_itr++) = 3 << 30 | (static_cast<uint32_t>(point.v.x) << 20) | (static_cast<uint32_t>(point.v.y) << 10) | (static_cast<uint32_t>(point.v.z));
-                *(color_itr++) = point.c;
-            }
-
-            vertices = vertices_10bit;
-        }
-        else if (settings.bits==16)
-        {
-            auto vertices_16bit = vsg::usvec3Array::create(points.size(), vsg::Data::Properties(VK_FORMAT_R16G16B16_UNORM));
-            auto vertex_itr = vertices_16bit->begin();
-            auto color_itr = colors->begin();
-            for(auto& point : points)
-            {
-                (vertex_itr++)->set(static_cast<uint16_t>(point.v.x), static_cast<uint16_t>(point.v.y), static_cast<uint16_t>(point.v.z));
-                *(color_itr++) = point.c;
-            }
-
-            vertices = vertices_16bit;
-        }
-        else
-        {
-            return {};
-        }
-
-
-        // set up vertexDraw that will do the rendering.
-        auto vertexDraw = vsg::VertexDraw::create();
-        vertexDraw->assignArrays({vertices, normals, colors, positionScaleValue, pointSizeValue});
-        vertexDraw->vertexCount = points.size();
-        vertexDraw->instanceCount = 1;
-
-        return vertexDraw;
-    }
-
-    vsg::ref_ptr<vsg::Node> createRendering(const Settings& settings, Key key, vsg::dbox& bound)
-    {
-        double brickPrecision = settings.precision * static_cast<double>(key.w);
-        double brickSize = brickPrecision * pow(2.0, static_cast<double>(settings.bits));
-
-        vsg::dvec3 position(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize);
-        position -= settings.offset;
-
-        for(auto& point : points)
-        {
-            auto& v = point.v;
-            bound.add(position.x + brickPrecision * static_cast<double>(v.x),
-                      position.y + brickPrecision * static_cast<double>(v.y),
-                      position.z + brickPrecision * static_cast<double>(v.z));
-        }
-
-        vsg::vec2 pointSize(brickPrecision*settings.pointSize, brickPrecision);
-        vsg::vec4 positionScale(position.x, position.y, position.z, brickSize);
-
-        return createRendering(settings, positionScale, pointSize);
-    }
-
-protected:
-    virtual ~Brick() {}
-};
-
-
-using Bricks = std::map<Key, vsg::ref_ptr<Brick>>;
-using Levels = std::list<Bricks>;
-
-bool readBricks(const vsg::Path filename, Settings& settings, Bricks& bricks)
+bool readBricks(const vsg::Path filename, vsgPoints::Settings& settings, vsgPoints::Bricks& bricks)
 {
     auto& bound = settings.bound;
     bound.reset();
@@ -196,7 +73,7 @@ bool readBricks(const vsg::Path filename, Settings& settings, Bricks& bricks)
     auto points = vsg::Array<VsgIOPoint>::create(settings.numPointsPerBlock);
     size_t numPointsRead = 0;
 
-    decltype(PackedPoint::c)::value_type alpha = 255;
+    decltype(vsgPoints::PackedPoint::c)::value_type alpha = 255;
 
     int64_t divisor = 1 << settings.bits;
     int64_t mask = divisor - 1;
@@ -222,16 +99,16 @@ bool readBricks(const vsg::Path filename, Settings& settings, Bricks& bricks)
             vsg::dvec3 scaled_v = point.v * multiplier;
             vsg::dvec3 rounded_v = {std::round(scaled_v.x), std::round(scaled_v.y), std::round(scaled_v.z)};
             vsg::t_vec3<int64_t> int64_v = {static_cast<int64_t>(rounded_v.x),  static_cast<int64_t>(rounded_v.y), static_cast<int64_t>(rounded_v.z)};
-            Key key = { static_cast<int32_t>(int64_v.x / divisor), static_cast<int32_t>(int64_v.y / divisor), static_cast<int32_t>(int64_v.z / divisor), 1};
+            vsgPoints::Key key = { static_cast<int32_t>(int64_v.x / divisor), static_cast<int32_t>(int64_v.y / divisor), static_cast<int32_t>(int64_v.z / divisor), 1};
 
-            PackedPoint packedPoint;
+            vsgPoints::PackedPoint packedPoint;
             packedPoint.v.set(static_cast<uint16_t>(int64_v.x & mask), static_cast<uint16_t>(int64_v.y & mask), static_cast<uint16_t>(int64_v.z & mask));
             packedPoint.c.set(point.c.r, point.c.g, point.c.b, alpha) ;
 
             auto& brick = bricks[key];
             if (!brick)
             {
-                brick = Brick::create();
+                brick = vsgPoints::Brick::create();
             }
 
             brick->points.push_back(packedPoint);
@@ -242,16 +119,16 @@ bool readBricks(const vsg::Path filename, Settings& settings, Bricks& bricks)
     return true;
 }
 
-bool generateLevel(Bricks& source, Bricks& destination, const Settings& settings)
+bool generateLevel(vsgPoints::Bricks& source, vsgPoints::Bricks& destination, const vsgPoints::Settings& settings)
 {
     int32_t bits = settings.bits;
     for(auto& [source_key, source_brick] : source)
     {
-        Key destination_key = {source_key.x / 2, source_key.y / 2, source_key.z / 2, source_key.w * 2};
+        vsgPoints::Key destination_key = {source_key.x / 2, source_key.y / 2, source_key.z / 2, source_key.w * 2};
         vsg::ivec3 offset = {(source_key.x & 1) << bits, (source_key.y & 1) << bits, (source_key.z & 1) << bits};
 
         auto& destinatio_brick = destination[destination_key];
-        if (!destinatio_brick) destinatio_brick = Brick::create();
+        if (!destinatio_brick) destinatio_brick = vsgPoints::Brick::create();
 
         auto& source_points = source_brick->points;
         auto& desintation_points = destinatio_brick->points;
@@ -260,7 +137,7 @@ bool generateLevel(Bricks& source, Bricks& destination, const Settings& settings
         {
             auto& p = source_points[i];
 
-            PackedPoint new_p;
+            vsgPoints::PackedPoint new_p;
             new_p.v.x = static_cast<uint16_t>((static_cast<int32_t>(p.v.x) + offset.x)/2);
             new_p.v.y = static_cast<uint16_t>((static_cast<int32_t>(p.v.y) + offset.y)/2);
             new_p.v.z = static_cast<uint16_t>((static_cast<int32_t>(p.v.z) + offset.z)/2);
@@ -273,7 +150,7 @@ bool generateLevel(Bricks& source, Bricks& destination, const Settings& settings
     return !destination.empty();
 }
 
-vsg::ref_ptr<vsg::StateGroup> createStateGroup(const Settings& settings)
+vsg::ref_ptr<vsg::StateGroup> createStateGroup(const vsgPoints::Settings& settings)
 {
     auto textureData = vsgPoints::createParticleImage(64);
     auto shaderSet = vsgPoints::createPointsFlatShadedShaderSet(settings.options);
@@ -347,11 +224,11 @@ vsg::ref_ptr<vsg::StateGroup> createStateGroup(const Settings& settings)
     return stateGroup;
 }
 
-vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator level_itr, Levels::reverse_iterator end_itr, Key key, vsg::dbox& bound, bool root = false)
+vsg::ref_ptr<vsg::Node> subtile(vsgPoints::Settings& settings, vsgPoints::Levels::reverse_iterator level_itr, vsgPoints::Levels::reverse_iterator end_itr, vsgPoints::Key key, vsg::dbox& bound, bool root = false)
 {
     if (level_itr == end_itr) return {};
 
-    Bricks& bricks = *level_itr;
+    auto& bricks = *level_itr;
     auto itr = bricks.find(key);
     if (itr == bricks.end())
     {
@@ -368,18 +245,18 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
         std::array<vsg::ref_ptr<vsg::Node>, 8> children;
         size_t num_children = 0;
 
-        Key subkey{key.x * 2, key.y * 2, key.z * 2, key.w / 2};
+        vsgPoints::Key subkey{key.x * 2, key.y * 2, key.z * 2, key.w / 2};
 
         vsg::dbox subtiles_bound;
 
         if (auto child = subtile(settings, next_itr, end_itr, subkey, subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 0, 0, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 1, 0, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 1, 0, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 0, 1, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 0, 1, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(0, 1, 1, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+Key(1, 1, 1, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(1, 0, 0, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(0, 1, 0, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(1, 1, 0, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(0, 0, 1, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(1, 0, 1, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(0, 1, 1, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(1, 1, 1, 0), subtiles_bound)) children[num_children++] = child;
 
 
         vsg::Path path = vsg::make_string(settings.path,"/",key.w,"/",key.z,"/",key.y);
@@ -387,7 +264,6 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
         vsg::Path full_path = path/filename;
 
         vsg::makeDirectory(path);
-
 
         if (num_children==1)
         {
@@ -456,7 +332,7 @@ vsg::ref_ptr<vsg::Node> subtile(Settings& settings, Levels::reverse_iterator lev
     return vsg::Node::create();
 }
 
-vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, Settings& settings)
+vsg::ref_ptr<vsg::Node> createPagedLOD(vsgPoints::Levels& levels, vsgPoints::Settings& settings)
 {
     if (levels.empty()) return {};
 
@@ -504,13 +380,13 @@ vsg::ref_ptr<vsg::Node> createPagedLOD(Levels& levels, Settings& settings)
     return stateGroup;
 }
 
-vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& settings)
+vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, vsgPoints::Settings& settings)
 {
     double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
 
     std::cout<<"brickSize = "<<brickSize<<std::endl;
 
-    std::list<Bricks> levels(1);
+    vsgPoints::Levels levels(1);
     auto& first_level = levels.front();
     if (!readBricks(filename, settings, first_level))
     {
@@ -537,7 +413,7 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, Settings& setti
     {
         auto& source = levels.back();
 
-        levels.push_back(Bricks());
+        levels.push_back(vsgPoints::Bricks());
         auto& destination = levels.back();
 
         if (!generateLevel(source, destination, settings)) break;
@@ -578,7 +454,7 @@ int main(int argc, char** argv)
     if (size_t nodesBlockSize; arguments.read("--nodes", nodesBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_NODES, nodesBlockSize);
     if (size_t dataBlockSize; arguments.read("--data", dataBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_DATA, dataBlockSize);
 
-    Settings settings;
+    vsgPoints::Settings settings;
     settings.numPointsPerBlock = arguments.value<size_t>(10000, "-b");
     settings.precision = arguments.value<double>(0.001, "-p");
     settings.transition = arguments.value<float>(0.125f, "-t");
