@@ -123,7 +123,8 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, vsgPoints::Sett
 
     std::cout<<"brickSize = "<<brickSize<<std::endl;
 
-    vsgPoints::Levels levels(1);
+    vsgPoints::Levels levels;
+    levels.push_back(vsgPoints::Bricks::create());
     auto& first_level = levels.front();
     if (!readBricks(filename, settings, *first_level))
     {
