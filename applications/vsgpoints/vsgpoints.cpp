@@ -55,46 +55,25 @@ bool readBricks(const vsg::Path filename, vsgPoints::Settings& settings, vsgPoin
     std::ifstream fin(filename, std::ios::in | std::ios::binary);
     if (!fin) return false;
 
-
-    fin.seekg(0, fin.end);
-    size_t fileSize = fin.tellg();
-    size_t numPoints = fileSize / sizeof(VsgIOPoint);
-    std::cout<<"    "<<filename<<" size = "<<format_number(fileSize)<<std::endl;
-    std::cout<<"    numPoints = "<<format_number(numPoints)<<std::endl;
-
-    if (numPoints == 0) return false;
-
-    fin.clear();
-    fin.seekg(0, fin.beg);
-
     double multiplier = 1.0 / settings.precision;
     auto points = vsg::Array<VsgIOPoint>::create(settings.numPointsPerBlock);
-    size_t numPointsRead = 0;
 
     decltype(vsgPoints::PackedPoint::c)::value_type alpha = 255;
 
     int64_t divisor = 1 << settings.bits;
     int64_t mask = divisor - 1;
 
-    std::cout<<"Reading data: divisor = "<<divisor<<", mask = "<<mask<<std::endl;
     while(fin)
     {
-        size_t numPointsToRead = std::min(numPoints - numPointsRead, settings.numPointsPerBlock);
-
-        if (numPointsToRead == 0) break;
-
-        size_t bytesToRead = numPointsToRead * sizeof(VsgIOPoint);
-
+        size_t bytesToRead = settings.numPointsPerBlock * sizeof(VsgIOPoint);
         fin.read(reinterpret_cast<char*>(points->dataPointer()), bytesToRead);
 
-        std::cout<<" bytesToRead = "<<bytesToRead<<", fin.gcount() = "<<fin.gcount()<<std::endl;
+        size_t numPointsRead = static_cast<size_t>(fin.gcount()) / sizeof(VsgIOPoint);
+        if (numPointsRead == 0) break;
 
-        numPointsRead += numPointsToRead;
-
-        for(auto& point : *points)
+        for(size_t i =0; i<numPointsRead; ++i)
         {
-            if (numPointsToRead==0) break;
-            --numPointsToRead;
+            auto& point = (*points)[i];
 
             bound.add(point.v);
 
