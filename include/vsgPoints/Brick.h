@@ -59,9 +59,36 @@ namespace vsgPoints
         virtual ~Brick();
     };
 
-    using Bricks = std::map<Key, vsg::ref_ptr<Brick>>;
-    using Levels = std::list<Bricks>;
+    class VSGPOINTS_DECLSPEC Bricks : public vsg::Inherit<vsg::Object, Bricks>
+    {
+    public:
 
+        using BrickMap = std::map<Key, vsg::ref_ptr<Brick>>;
+        using key_type = BrickMap::key_type;
+        using mapped_type = BrickMap::mapped_type;
+        using value_type = BrickMap::value_type;
+        using iterator = BrickMap::iterator;
+        using const_iterator = BrickMap::const_iterator;
+
+        BrickMap bricks;
+
+        iterator find(Key key) { return bricks.find(key); }
+        const_iterator find(Key key) const { return bricks.find(key); }
+
+        mapped_type& operator[] (Key key) { return bricks[key]; }
+
+        iterator begin() { return bricks.begin(); }
+        iterator end() { return bricks.end(); }
+
+        const_iterator begin() const { return bricks.begin(); }
+        const_iterator end() const { return bricks.end(); }
+
+        bool empty() const { return bricks.empty(); }
+
+        size_t size() const { return bricks.size(); }
+    };
+
+    using Levels = std::list<vsg::ref_ptr<Bricks>>;
 
     extern VSGPOINTS_DECLSPEC bool generateLevel(vsgPoints::Bricks& source, vsgPoints::Bricks& destination, const vsgPoints::Settings& settings);
     extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::StateGroup> createStateGroup(const vsgPoints::Settings& settings);

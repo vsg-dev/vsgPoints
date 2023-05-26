@@ -125,7 +125,7 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, vsgPoints::Sett
 
     vsgPoints::Levels levels(1);
     auto& first_level = levels.front();
-    if (!readBricks(filename, settings, first_level))
+    if (!readBricks(filename, settings, *first_level))
     {
         std::cout<<"Waring: unable to read file."<<std::endl;
         return {};
@@ -136,24 +136,24 @@ vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, vsgPoints::Sett
         settings.offset = (settings.bound.max + settings.bound.min) * 0.5;
     }
 
-    std::cout<<"After reading data "<<first_level.size()<<std::endl;
+    std::cout<<"After reading data "<<first_level->size()<<std::endl;
 
     size_t biggestBrick = 0;
     vsg::t_box<int32_t> keyBounds;
-    for(auto& [key, brick] : first_level)
+    for(auto& [key, brick] : *first_level)
     {
         keyBounds.add(key.x, key.y, key.z);
         if (brick->points.size() > biggestBrick) biggestBrick = brick->points.size();
     }
 
-    while(levels.back().size() > 1)
+    while(levels.back()->size() > 1)
     {
         auto& source = levels.back();
 
-        levels.push_back(vsgPoints::Bricks());
+        levels.push_back(vsgPoints::Bricks::create());
         auto& destination = levels.back();
 
-        if (!generateLevel(source, destination, settings)) break;
+        if (!generateLevel(*source, *destination, settings)) break;
     }
 
     std::cout<<"levels = "<<levels.size()<<std::endl;

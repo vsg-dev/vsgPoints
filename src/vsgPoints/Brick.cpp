@@ -232,8 +232,8 @@ vsg::ref_ptr<vsg::Node> vsgPoints::subtile(vsgPoints::Settings& settings, vsgPoi
     if (level_itr == end_itr) return {};
 
     auto& bricks = *level_itr;
-    auto itr = bricks.find(key);
-    if (itr == bricks.end())
+    auto itr = bricks->find(key);
+    if (itr == bricks->end())
     {
         //std::cout<<"   "<<key<<" null "<<std::endl;
         return {};
@@ -352,7 +352,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createPagedLOD(vsgPoints::Levels& levels, vsg
     if (levels.size() == 1)
     {
         vsg::dbox bound;
-        for(auto& [key, brick] : levels.back())
+        for(auto& [key, brick] : *(levels.back()))
         {
             auto tile = brick->createRendering(settings, key, bound);
             stateGroup->addChild(tile);
@@ -367,9 +367,9 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createPagedLOD(vsgPoints::Levels& levels, vsg
 
     // root tile
     auto& root_level = *current_itr;
-    vsg::info("root level ", root_level.size());
+    vsg::info("root level ", root_level->size());
 
-    for(auto& [key, brick] : root_level)
+    for(auto& [key, brick] : *root_level)
     {
         vsg::info("root key = ", key, " ",brick);
         vsg::dbox bound;
