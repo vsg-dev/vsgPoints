@@ -13,29 +13,6 @@
 #include <filesystem>
 #include <string_view>
 
-
-template<typename T>
-std::string format_number(T v)
-{
-    std::vector<T> parts;
-    do
-    {
-        parts.push_back(v % 1000);
-        v /= 1000;
-    } while (v > 0);
-
-    std::stringstream s;
-    auto itr = parts.rbegin();
-    s << *(itr++);
-    while(itr != parts.rend())
-    {
-        s << ',';
-        s << std::setfill('0') << std::setw(3) << *(itr++);
-    }
-
-    return s.str();
-}
-
 int main(int argc, char** argv)
 {
     // set up defaults and read command line arguments to override them
