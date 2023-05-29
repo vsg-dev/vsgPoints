@@ -7,12 +7,14 @@ SET(HEADER_PATH ${VSGPOINTS_SOURCE_DIR}/include/vsgPoints)
 
 set(HEADERS
     ${HEADER_PATH}/Export.h
+    ${HEADER_PATH}/BIN.h
     ${HEADER_PATH}/Brick.h
     ${HEADER_PATH}/BrickBuilder.h
     ${HEADER_PATH}/BrickShaderSet.h
  )
 
 set(SOURCES
+    BIN.cpp
     Brick.cpp
     BrickBuilder.cpp
     BrickShaderSet.cpp

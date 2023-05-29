@@ -28,11 +28,11 @@ namespace vsgPoints
 
     #pragma pack()
 
-    struct Settings
+    struct Settings : public vsg::Inherit<vsg::Object, Settings>
     {
         size_t numPointsPerBlock = 10000;
         double precision = 0.001;
-        uint32_t bits = 8;
+        uint32_t bits = 10;
         float pointSize = 4.0f;
         float transition = 0.125f;
         vsg::Path path;

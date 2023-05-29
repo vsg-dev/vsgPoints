@@ -4,7 +4,7 @@
 #    include <vsgXchange/all.h>
 #endif
 
-#include <vsgPoints/Brick.h>
+#include <vsgPoints/BIN.h>
 
 #include <iostream>
 #include <sstream>
@@ -12,16 +12,6 @@
 
 #include <filesystem>
 #include <string_view>
-
-#pragma pack(1)
-
-struct VsgIOPoint
-{
-    vsg::dvec3 v;
-    vsg::ubvec3 c;
-};
-
-#pragma pack()
 
 
 template<typename T>
@@ -33,7 +23,6 @@ std::string format_number(T v)
         parts.push_back(v % 1000);
         v /= 1000;
     } while (v > 0);
-
 
     std::stringstream s;
     auto itr = parts.rbegin();
@@ -47,110 +36,6 @@ std::string format_number(T v)
     return s.str();
 }
 
-bool readBricks(const vsg::Path filename, vsgPoints::Settings& settings, vsgPoints::Bricks& bricks)
-{
-    auto& bound = settings.bound;
-    bound.reset();
-
-    std::ifstream fin(filename, std::ios::in | std::ios::binary);
-    if (!fin) return false;
-
-    double multiplier = 1.0 / settings.precision;
-    auto points = vsg::Array<VsgIOPoint>::create(settings.numPointsPerBlock);
-
-    decltype(vsgPoints::PackedPoint::c)::value_type alpha = 255;
-
-    int64_t divisor = 1 << settings.bits;
-    int64_t mask = divisor - 1;
-
-    while(fin)
-    {
-        size_t bytesToRead = settings.numPointsPerBlock * sizeof(VsgIOPoint);
-        fin.read(reinterpret_cast<char*>(points->dataPointer()), bytesToRead);
-
-        size_t numPointsRead = static_cast<size_t>(fin.gcount()) / sizeof(VsgIOPoint);
-        if (numPointsRead == 0) break;
-
-        for(size_t i =0; i<numPointsRead; ++i)
-        {
-            auto& point = (*points)[i];
-
-            bound.add(point.v);
-
-            vsg::dvec3 scaled_v = point.v * multiplier;
-            vsg::dvec3 rounded_v = {std::round(scaled_v.x), std::round(scaled_v.y), std::round(scaled_v.z)};
-            vsg::t_vec3<int64_t> int64_v = {static_cast<int64_t>(rounded_v.x),  static_cast<int64_t>(rounded_v.y), static_cast<int64_t>(rounded_v.z)};
-            vsgPoints::Key key = { static_cast<int32_t>(int64_v.x / divisor), static_cast<int32_t>(int64_v.y / divisor), static_cast<int32_t>(int64_v.z / divisor), 1};
-
-            vsgPoints::PackedPoint packedPoint;
-            packedPoint.v.set(static_cast<uint16_t>(int64_v.x & mask), static_cast<uint16_t>(int64_v.y & mask), static_cast<uint16_t>(int64_v.z & mask));
-            packedPoint.c.set(point.c.r, point.c.g, point.c.b, alpha) ;
-
-            auto& brick = bricks[key];
-            if (!brick)
-            {
-                brick = vsgPoints::Brick::create();
-            }
-
-            brick->points.push_back(packedPoint);
-        }
-    }
-    std::cout<<"Read bound "<<bound<<std::endl;
-
-    return true;
-}
-
-vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, vsgPoints::Settings& settings)
-{
-    vsgPoints::Levels levels;
-    levels.push_back(vsgPoints::Bricks::create());
-    auto& first_level = levels.front();
-    if (!readBricks(filename, settings, *first_level))
-    {
-        std::cout<<"Waring: unable to read file."<<std::endl;
-        return {};
-    }
-
-    if (settings.bound.valid())
-    {
-        settings.offset = (settings.bound.max + settings.bound.min) * 0.5;
-    }
-
-    std::cout<<"After reading data "<<first_level->size()<<std::endl;
-
-    size_t biggestBrick = 0;
-    vsg::t_box<int32_t> keyBounds;
-    for(auto& [key, brick] : *first_level)
-    {
-        keyBounds.add(key.x, key.y, key.z);
-        if (brick->points.size() > biggestBrick) biggestBrick = brick->points.size();
-    }
-
-    while(levels.back()->size() > 1)
-    {
-        auto& source = levels.back();
-
-        levels.push_back(vsgPoints::Bricks::create());
-        auto& destination = levels.back();
-
-        if (!generateLevel(*source, *destination, settings)) break;
-    }
-
-    std::cout<<"levels = "<<levels.size()<<std::endl;
-
-    std::cout<<"keyBounds "<<keyBounds<<std::endl;
-    std::cout<<"biggest brick "<<biggestBrick<<std::endl;
-
-    auto transform = vsg::MatrixTransform::create();
-    transform->matrix = vsg::translate(settings.offset);
-
-    if (auto model = createPagedLOD(levels, settings))
-    {
-        transform->addChild(model);
-    }
-    return transform;
-}
-
 int main(int argc, char** argv)
 {
     // set up defaults and read command line arguments to override them
@@ -161,31 +46,38 @@ int main(int argc, char** argv)
     options->paths = vsg::getEnvPaths("VSG_FILE_PATH");
     options->sharedObjects = vsg::SharedObjects::create();
 
+    options->add(vsgPoints::BIN::create());
+
 #ifdef vsgXchange_all
     // add vsgXchange's support for reading and writing 3rd party file formats
     options->add(vsgXchange::all::create());
 #endif
+
+    arguments.read(options);
 
     if (int type; arguments.read("--allocator", type)) vsg::Allocator::instance()->allocatorType = vsg::AllocatorType(type);
     if (size_t objectsBlockSize; arguments.read("--objects", objectsBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_OBJECTS, objectsBlockSize);
     if (size_t nodesBlockSize; arguments.read("--nodes", nodesBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_NODES, nodesBlockSize);
     if (size_t dataBlockSize; arguments.read("--data", dataBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_DATA, dataBlockSize);
 
-    vsgPoints::Settings settings;
-    settings.numPointsPerBlock = arguments.value<size_t>(10000, "-b");
-    settings.precision = arguments.value<double>(0.001, "-p");
-    settings.transition = arguments.value<float>(0.125f, "-t");
-    settings.pointSize = arguments.value<float>(4.0f, "--ps");
-    settings.options = options;
+    // set up the Settings used to guide how point clouds are setup in the scene graph
+    auto settings = vsgPoints::Settings::create();
+    options->setObject("settings", settings);
+    settings->options = vsg::Options::create(*options);
 
+    arguments.read("-b", settings->numPointsPerBlock);
+    arguments.read("-p", settings->precision);
+    arguments.read("-t", settings->transition);
+    arguments.read("--ps", settings->pointSize);
+    arguments.read("--bits", settings->bits);
+
+    bool writeOnly = false;
     auto outputFilename = arguments.value<vsg::Path>("", "-o");
-    bool writeOnly = outputFilename && !arguments.read({"-v", "--viewer"});
-
-    settings.bits = arguments.value<uint32_t>(10, "--bits");
-    if (settings.bits != 8 && settings.bits != 10 && settings.bits != 16)
+    if (outputFilename)
     {
-        std::cout<<"Error: "<<settings.bits<<" not supported, valid values are 8, 10 and 16."<<std::endl;
-        return 1;
+        settings->path =  vsg::filePath(outputFilename)/vsg::simpleFilename(outputFilename);
+        settings->extension = vsg::fileExtension(outputFilename);
+        writeOnly = !arguments.read({"-v", "--viewer"});
     }
 
     auto group = vsg::Group::create();
@@ -193,19 +85,9 @@ int main(int argc, char** argv)
     vsg::Path filename;
     while(arguments.read("-i", filename))
     {
-        std::cout<<"filename = "<<filename<<std::endl;
-        if (auto found_filename = vsg::findFile(filename, options))
+        if (auto node = vsg::read_cast<vsg::Node>(filename, options))
         {
-            if (outputFilename)
-            {
-                settings.path = vsg::filePath(outputFilename)/vsg::simpleFilename(outputFilename);
-                settings.extension = vsg::fileExtension(outputFilename);
-            }
-
-            if (auto scene = processRawData(found_filename, settings))
-            {
-                group->addChild(scene);
-            }
+            group->addChild(node);
         }
     }
 
@@ -232,9 +114,6 @@ int main(int argc, char** argv)
     windowTraits->debugLayer = arguments.read({"--debug", "-d"});
     windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
 
-    std::cout<<"windowTraits->debugLayer = "<<windowTraits->debugLayer<<std::endl;
-    std::cout<<"windowTraits->apiDumpLayer = "<<windowTraits->apiDumpLayer<<std::endl;
-
     auto viewer = vsg::Viewer::create();
     auto window = vsg::Window::create(windowTraits);
     if (!window)
@@ -245,16 +124,8 @@ int main(int argc, char** argv)
 
     viewer->addWindow(window);
 
-    vsg::dbox bounds;
-    if (settings.bound)
-    {
-        bounds = settings.bound;
-    }
-    else
-    {
-        // compute the bounds of the scene graph to help position camera
-        bounds = vsg::visit<vsg::ComputeBounds>(vsg_scene).bounds;
-    }
+    // compute the bounds of the scene graph to help position camera
+    vsg::dbox bounds = vsg::visit<vsg::ComputeBounds>(vsg_scene).bounds;
 
     vsg::dvec3 center = (bounds.min + bounds.max) * 0.5;
     double radius = vsg::length(bounds.max - bounds.min) * 0.6;
