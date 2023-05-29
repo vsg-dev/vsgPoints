@@ -102,10 +102,6 @@ bool readBricks(const vsg::Path filename, vsgPoints::Settings& settings, vsgPoin
 
 vsg::ref_ptr<vsg::Node> processRawData(const vsg::Path filename, vsgPoints::Settings& settings)
 {
-    double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
-
-    std::cout<<"brickSize = "<<brickSize<<std::endl;
-
     vsgPoints::Levels levels;
     levels.push_back(vsgPoints::Bricks::create());
     auto& first_level = levels.front();
