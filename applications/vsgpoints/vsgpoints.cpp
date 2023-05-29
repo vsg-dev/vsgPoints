@@ -179,6 +179,7 @@ int main(int argc, char** argv)
     settings.options = options;
 
     auto outputFilename = arguments.value<vsg::Path>("", "-o");
+    bool writeOnly = outputFilename && !arguments.read({"-v", "--viewer"});
 
     settings.bits = arguments.value<uint32_t>(10, "--bits");
     if (settings.bits != 8 && settings.bits != 10 && settings.bits != 16)
@@ -208,62 +209,82 @@ int main(int argc, char** argv)
         }
     }
 
-    if (outputFilename && !group->children.empty())
+    if (group->children.empty())
     {
-        if (group->children.size()==1) vsg::write(group->children[0], outputFilename, options);
-        else vsg::write(group, outputFilename, options);
+        std::cout<<"Error: no data loaded."<<std::endl;
+        return 1;
     }
 
-    if (arguments.read("-r") && !group->children.empty() && settings.bound.valid())
+    vsg::ref_ptr<vsg::Node> vsg_scene;
+    if (group->children.size()==1) vsg_scene = group->children[0];
+    else vsg_scene = group;
+
+    if (outputFilename)
     {
-        auto windowTraits = vsg::WindowTraits::create();
-        windowTraits->debugLayer = arguments.read({"--debug", "-d"});
-        windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
+        vsg::write(vsg_scene, outputFilename, options);
 
-        std::cout<<"windowTraits->debugLayer = "<<windowTraits->debugLayer<<std::endl;
-        std::cout<<"windowTraits->apiDumpLayer = "<<windowTraits->apiDumpLayer<<std::endl;
+        std::cout<<"Written scene graph to "<<outputFilename<<std::endl;
 
-        auto viewer = vsg::Viewer::create();
-        auto window = vsg::Window::create(windowTraits);
-        if (!window)
-        {
-            std::cout << "Could not create windows." << std::endl;
-            return 1;
-        }
+        if (writeOnly) return 0;
+    }
 
-        viewer->addWindow(window);
+    auto windowTraits = vsg::WindowTraits::create();
+    windowTraits->debugLayer = arguments.read({"--debug", "-d"});
+    windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
 
-        auto& bound = settings.bound;
-        vsg::dsphere bs((bound.max + bound.min) * 0.5, vsg::length(bound.max - bound.min)*0.5);
-        double nearFarRatio = 0.001;
+    std::cout<<"windowTraits->debugLayer = "<<windowTraits->debugLayer<<std::endl;
+    std::cout<<"windowTraits->apiDumpLayer = "<<windowTraits->apiDumpLayer<<std::endl;
 
-        auto lookAt = vsg::LookAt::create(bs.center - vsg::dvec3(0.0, -bs.radius * 3.5, 0.0), bs.center, vsg::dvec3(0.0, 0.0, 1.0));
-        auto perspective  = vsg::Perspective::create(30.0, static_cast<double>(window->extent2D().width) / static_cast<double>(window->extent2D().height), nearFarRatio * bs.radius, bs.radius * 4.5);
+    auto viewer = vsg::Viewer::create();
+    auto window = vsg::Window::create(windowTraits);
+    if (!window)
+    {
+        std::cout << "Could not create windows." << std::endl;
+        return 1;
+    }
 
-        auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
+    viewer->addWindow(window);
 
-        // add close handler to respond the close window button and pressing escape
-        viewer->addEventHandler(vsg::CloseHandler::create(viewer));
-        viewer->addEventHandler(vsg::Trackball::create(camera));
+    vsg::dbox bounds;
+    if (settings.bound)
+    {
+        bounds = settings.bound;
+    }
+    else
+    {
+        // compute the bounds of the scene graph to help position camera
+        bounds = vsg::visit<vsg::ComputeBounds>(vsg_scene).bounds;
+    }
 
-        auto commandGraph = vsg::createCommandGraphForView(window, camera, group);
-        viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
+    vsg::dvec3 center = (bounds.min + bounds.max) * 0.5;
+    double radius = vsg::length(bounds.max - bounds.min) * 0.6;
+    double nearFarRatio = 0.001;
 
-        viewer->compile();
+    auto lookAt = vsg::LookAt::create(center - vsg::dvec3(0.0, -radius * 3.5, 0.0), center, vsg::dvec3(0.0, 0.0, 1.0));
+    auto perspective  = vsg::Perspective::create(30.0, static_cast<double>(window->extent2D().width) / static_cast<double>(window->extent2D().height), nearFarRatio * radius, radius * 4.5);
 
-        // rendering main loop
-        while (viewer->advanceToNextFrame())
-        {
-            // pass any events into EventHandlers assigned to the Viewer
-            viewer->handleEvents();
+    auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
 
-            viewer->update();
+    // add close handler to respond the close window button and pressing escape
+    viewer->addEventHandler(vsg::CloseHandler::create(viewer));
+    viewer->addEventHandler(vsg::Trackball::create(camera));
 
-            viewer->recordAndSubmit();
+    auto commandGraph = vsg::createCommandGraphForView(window, camera, vsg_scene);
+    viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 
-            viewer->present();
-        }
+    viewer->compile();
 
+    // rendering main loop
+    while (viewer->advanceToNextFrame())
+    {
+        // pass any events into EventHandlers assigned to the Viewer
+        viewer->handleEvents();
+
+        viewer->update();
+
+        viewer->recordAndSubmit();
+
+        viewer->present();
     }
 
     return 0;
