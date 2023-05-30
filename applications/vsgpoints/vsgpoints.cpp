@@ -5,6 +5,8 @@
 #endif
 
 #include <vsgPoints/BIN.h>
+#include <vsgPoints/AsciiPoints.h>
+#include <vsgPoints/Brick.h>
 
 #include <iostream>
 #include <sstream>
@@ -24,6 +26,7 @@ int main(int argc, char** argv)
     options->sharedObjects = vsg::SharedObjects::create();
 
     options->add(vsgPoints::BIN::create());
+    options->add(vsgPoints::AsciiPoints::create());
 
 #ifdef vsgXchange_all
     // add vsgXchange's support for reading and writing 3rd party file formats
@@ -62,9 +65,54 @@ int main(int argc, char** argv)
     vsg::Path filename;
     while(arguments.read("-i", filename))
     {
-        if (auto node = vsg::read_cast<vsg::Node>(filename, options))
+        auto object = vsg::read(filename, options);
+        if (auto node = object.cast<vsg::Node>())
         {
             group->addChild(node);
+        }
+        else if (auto bricks = object.cast<vsgPoints::Bricks>())
+        {
+            std::cout<<"Loaded bricks "<<bricks->size()<<std::endl;
+
+            vsgPoints::Levels levels;
+            levels.push_back(bricks);
+
+            if (settings->bound.valid())
+            {
+                settings->offset = (settings->bound.max + settings->bound.min) * 0.5;
+            }
+
+            while(levels.back()->size() > 1)
+            {
+                auto& source = levels.back();
+
+                levels.push_back(vsgPoints::Bricks::create());
+                auto& destination = levels.back();
+
+                if (!vsgPoints::generateLevel(*source, *destination, *settings)) break;
+            }
+
+            std::cout<<"levels = "<<levels.size()<<std::endl;
+
+            size_t biggestBrick = 0;
+            vsg::t_box<int32_t> keyBounds;
+            for(auto& [key, brick] : *bricks)
+            {
+                keyBounds.add(key.x, key.y, key.z);
+                if (brick->points.size() > biggestBrick) biggestBrick = brick->points.size();
+            }
+            std::cout<<"keyBounds "<<keyBounds<<std::endl;
+            std::cout<<"biggest brick "<<biggestBrick<<std::endl;
+
+            auto transform = vsg::MatrixTransform::create();
+            transform->matrix = vsg::translate(settings->offset);
+
+            if (auto model = createPagedLOD(levels, *settings))
+            {
+                transform->addChild(model);
+            }
+
+            group->addChild(transform);
         }
     }
 

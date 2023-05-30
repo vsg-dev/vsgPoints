@@ -10,11 +10,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsgPoints/BIN.h>
+#include <vsgPoints/AsciiPoints.h>
 
 #include <vsg/nodes/MatrixTransform.h>
 #include <vsg/io/Path.h>
 #include <vsg/io/stream.h>
+#include <vsg/io/read_line.h>
 
 #include <fstream>
 
@@ -22,27 +23,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 using namespace vsgPoints;
 
-#pragma pack(1)
-
-struct VsgIOPoint
-{
-    vsg::dvec3 v;
-    vsg::ubvec3 c;
-};
-
-#pragma pack()
-
-BIN::BIN() :
-   supportedExtensions{".bin"}
+AsciiPoints::AsciiPoints() :
+   supportedExtensions{".3dc", ".asc"}
 {
 }
 
-vsg::ref_ptr<vsg::Object> BIN::read(const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const
+vsg::ref_ptr<vsg::Object> AsciiPoints::read(const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const
 {
     if (!vsg::compatibleExtension(filename, options, supportedExtensions)) return {};
 
-    auto found_filename = vsg::findFile(filename, options);
-    if (!found_filename) return {};
+    auto filenameToUse = vsg::findFile(filename, options);
+    if (!filenameToUse) return {};
 
     vsg::ref_ptr<vsgPoints::Settings> settings;
     if (options) settings = const_cast<vsg::Options*>(options.get())->getRefObject<vsgPoints::Settings>("settings");
@@ -54,36 +45,24 @@ vsg::ref_ptr<vsg::Object> BIN::read(const vsg::Path& filename, vsg::ref_ptr<cons
         return {};
     }
 
-    auto bricks = Bricks::create(settings);
+    auto bricks = vsgPoints::Bricks::create(settings);
 
-    std::ifstream fin(found_filename, std::ios::in | std::ios::binary);
-    if (!fin) return {};
-
-    auto points = vsg::Array<VsgIOPoint>::create(settings->numPointsPerBlock);
+    auto values = vsg::doubleArray::create(10);
     uint8_t alpha = 255;
 
+    std::ifstream fin(filenameToUse);
     while(fin)
     {
-        size_t bytesToRead = settings->numPointsPerBlock * sizeof(VsgIOPoint);
-        fin.read(reinterpret_cast<char*>(points->dataPointer()), bytesToRead);
-
-        size_t numPointsRead = static_cast<size_t>(fin.gcount()) / sizeof(VsgIOPoint);
-        if (numPointsRead == 0) break;
-
-        for(size_t i =0; i<numPointsRead; ++i)
+        if (auto numValuesRead = vsg::read_line(fin, values->data(), values->size()))
         {
-            auto& point = (*points)[i];
-            bricks->add(point.v, vsg::ubvec4(point.c.r, point.c.g, point.c.b, alpha));
+            if (numValuesRead >= 6)
+            {
+                bricks->add(vsg::dvec3(values->at(0), values->at(1), values->at(2)), vsg::ubvec4(values->at(3), values->at(4), values->at(5), alpha));
+            }
         }
     }
 
-    if (bricks->empty())
-    {
-        std::cout<<"Waring: unable to read file."<<std::endl;
-        return {};
-    }
-    else
-    {
-        return bricks;
-    }
+    if (bricks->empty()) return {};
+
+    return bricks;
 }

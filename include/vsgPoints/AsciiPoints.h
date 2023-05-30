@@ -19,11 +19,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 namespace vsgPoints
 {
 
-class VSGPOINTS_DECLSPEC BIN : public vsg::Inherit<vsg::ReaderWriter, BIN>
+class VSGPOINTS_DECLSPEC AsciiPoints : public vsg::Inherit<vsg::ReaderWriter, AsciiPoints>
 {
 public:
 
-    BIN();
+    AsciiPoints();
 
     vsg::ref_ptr<vsg::Object> read(const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const override;
 

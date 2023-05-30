@@ -7,6 +7,7 @@ SET(HEADER_PATH ${VSGPOINTS_SOURCE_DIR}/include/vsgPoints)
 
 set(HEADERS
     ${HEADER_PATH}/Export.h
+    ${HEADER_PATH}/AsciiPoints.h
     ${HEADER_PATH}/BIN.h
     ${HEADER_PATH}/Brick.h
     ${HEADER_PATH}/BrickBuilder.h
@@ -14,6 +15,7 @@ set(HEADERS
  )
 
 set(SOURCES
+    AsciiPoints.cpp
     BIN.cpp
     Brick.cpp
     BrickBuilder.cpp

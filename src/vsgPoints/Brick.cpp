@@ -22,9 +22,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/nodes/PagedLOD.h>
 #include <vsg/utils/GraphicsPipelineConfigurator.h>
 
+#include <iostream>
+
 using namespace vsgPoints;
 
-
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Brick
+//
 Brick::Brick()
 {
 }
@@ -122,7 +127,45 @@ vsg::ref_ptr<vsg::Node> Brick::createRendering(const Settings& settings, Key key
     return createRendering(settings, positionScale, pointSize);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Bricks
+//
+Bricks::Bricks(vsg::ref_ptr<Settings> in_settings) :
+    settings(in_settings)
+{
+}
 
+void Bricks::add(const vsg::dvec3& v, const vsg::ubvec4& c)
+{
+    settings->bound.add(v);
+
+    double multiplier = 1.0 / settings->precision;
+    int64_t divisor = 1 << settings->bits;
+    int64_t mask = divisor - 1;
+
+    vsg::dvec3 scaled_v = v * multiplier;
+    vsg::dvec3 rounded_v = {std::round(scaled_v.x), std::round(scaled_v.y), std::round(scaled_v.z)};
+    vsg::t_vec3<int64_t> int64_v = {static_cast<int64_t>(rounded_v.x),  static_cast<int64_t>(rounded_v.y), static_cast<int64_t>(rounded_v.z)};
+    Key key = { static_cast<int32_t>(int64_v.x / divisor), static_cast<int32_t>(int64_v.y / divisor), static_cast<int32_t>(int64_v.z / divisor), 1};
+
+    PackedPoint packedPoint;
+    packedPoint.v.set(static_cast<uint16_t>(int64_v.x & mask), static_cast<uint16_t>(int64_v.y & mask), static_cast<uint16_t>(int64_v.z & mask));
+    packedPoint.c.set(c.r, c.g, c.b, c.a) ;
+
+    auto& brick = bricks[key];
+    if (!brick)
+    {
+        brick = Brick::create();
+    }
+
+    brick->points.push_back(packedPoint);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Help functions
+//
 bool vsgPoints::generateLevel(vsgPoints::Bricks& source, vsgPoints::Bricks& destination, const vsgPoints::Settings& settings)
 {
     int32_t bits = settings.bits;

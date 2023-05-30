@@ -63,6 +63,8 @@ namespace vsgPoints
     {
     public:
 
+        Bricks(vsg::ref_ptr<Settings> in_settings = {});
+
         using BrickMap = std::map<Key, vsg::ref_ptr<Brick>>;
         using key_type = BrickMap::key_type;
         using mapped_type = BrickMap::mapped_type;
@@ -70,7 +72,10 @@ namespace vsgPoints
         using iterator = BrickMap::iterator;
         using const_iterator = BrickMap::const_iterator;
 
+        vsg::ref_ptr<Settings> settings;
         BrickMap bricks;
+
+        void add(const vsg::dvec3& v, const vsg::ubvec4& c);
 
         iterator find(Key key) { return bricks.find(key); }
         const_iterator find(Key key) const { return bricks.find(key); }
