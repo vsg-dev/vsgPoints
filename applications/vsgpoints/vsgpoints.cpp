@@ -9,11 +9,6 @@
 #include <vsgPoints/Brick.h>
 
 #include <iostream>
-#include <sstream>
-#include <iomanip>
-
-#include <filesystem>
-#include <string_view>
 
 int main(int argc, char** argv)
 {
