@@ -19,7 +19,7 @@ void ConvertMeshToPoints::applyDraw(uint32_t firstVertex, uint32_t vertexCount, 
     auto& arrayState = *arrayStateStack.back();
     uint32_t lastIndex = instanceCount > 1 ? (firstInstance + instanceCount) : firstInstance + 1;
     uint32_t endVertex = firstVertex + vertexCount;
-    auto matrix = localToWorldStack().back();
+    auto matrix = localToWorld();
 
     vsg::ubvec4 color(255,255,255,255);
 
@@ -40,7 +40,7 @@ void ConvertMeshToPoints::applyDrawIndexed(uint32_t firstIndex, uint32_t indexCo
     auto& arrayState = *arrayStateStack.back();
     uint32_t lastIndex = instanceCount > 1 ? (firstInstance + instanceCount) : firstInstance + 1;
     uint32_t endIndex = firstIndex + indexCount;
-    auto matrix = localToWorldStack().back();
+    auto matrix = localToWorld();
 
     vsg::ubvec4 color(255,255,255,255);
 

@@ -8,7 +8,94 @@
 #include <vsgPoints/AsciiPoints.h>
 #include <vsgPoints/Brick.h>
 
+#include "ConvertMeshToPoints.h"
+
 #include <iostream>
+
+vsg::ref_ptr<vsg::Node> createPagedLODSceneGraph(vsg::ref_ptr<vsgPoints::Bricks> bricks, vsg::ref_ptr<vsgPoints::Settings> settings)
+{
+    if (bricks->empty())
+    {
+        std::cout<<"createPagedLODSceneGraph("<<bricks<<", "<<settings<<") bricks is empty(), cannot create scene graph."<<std::endl;
+        return {};
+    }
+
+    vsgPoints::Levels levels;
+    levels.push_back(bricks);
+
+    if (settings->bound.valid())
+    {
+        settings->offset = (settings->bound.max + settings->bound.min) * 0.5;
+    }
+
+    while(levels.back()->size() > 1)
+    {
+        auto& source = levels.back();
+
+        levels.push_back(vsgPoints::Bricks::create());
+        auto& destination = levels.back();
+
+        if (!vsgPoints::generateLevel(*source, *destination, *settings)) break;
+    }
+
+    std::cout<<"levels = "<<levels.size()<<std::endl;
+
+    size_t biggestBrick = 0;
+    vsg::t_box<int32_t> keyBounds;
+    for(auto& [key, brick] : *bricks)
+    {
+        keyBounds.add(key.x, key.y, key.z);
+        if (brick->points.size() > biggestBrick) biggestBrick = brick->points.size();
+    }
+    std::cout<<"keyBounds "<<keyBounds<<std::endl;
+    std::cout<<"biggest brick "<<biggestBrick<<std::endl;
+
+    auto transform = vsg::MatrixTransform::create();
+    transform->matrix = vsg::translate(settings->offset);
+
+    if (auto model = createPagedLOD(levels, *settings))
+    {
+        transform->addChild(model);
+    }
+
+    return transform;
+}
+
+vsg::ref_ptr<vsg::Node> createFlatSceneGraph(vsg::ref_ptr<vsgPoints::Bricks> bricks, vsg::ref_ptr<vsgPoints::Settings> settings)
+{
+    if (bricks->empty())
+    {
+        std::cout<<"createPagedLODSceneGraph("<<bricks<<", "<<settings<<") bricks is empty(), cannot create scene graph."<<std::endl;
+        return {};
+    }
+
+    if (settings->bound.valid())
+    {
+        settings->offset = (settings->bound.max + settings->bound.min) * 0.5;
+    }
+
+    auto cullGroup = vsg::CullGroup::create();
+    cullGroup->bound.center = (settings->bound.max + settings->bound.min) * 0.5;
+    cullGroup->bound.radius = vsg::length(settings->bound.max - settings->bound.min) * 0.5;
+
+    auto transform = vsg::MatrixTransform::create();
+    transform->matrix = vsg::translate(settings->offset);
+    cullGroup->addChild(transform);
+
+    auto group = vsgPoints::createStateGroup(*settings);
+    transform->addChild(group);
+
+    vsg::dbox bound;
+    for(auto& [key, brick] : *bricks)
+    {
+        if (auto node = brick->createRendering(*(bricks->settings), key, bound))
+        {
+            group->addChild(node);
+        }
+    }
+
+    return cullGroup;
+}
 
 int main(int argc, char** argv)
 {
@@ -45,6 +132,9 @@ int main(int argc, char** argv)
     arguments.read("-t", settings->transition);
     arguments.read("--ps", settings->pointSize);
     arguments.read("--bits", settings->bits);
+    bool flat = arguments.read("--flat");
+    bool convert_mesh = arguments.read("--mesh");
+    bool add_model = !arguments.read("--no-model");
 
     bool writeOnly = false;
     auto outputFilename = arguments.value<vsg::Path>("", "-o");
@@ -58,56 +148,40 @@ int main(int argc, char** argv)
     auto group = vsg::Group::create();
 
     vsg::Path filename;
+    while(arguments.read("-m", filename))
+    {
+    }
+
     while(arguments.read("-i", filename))
     {
         auto object = vsg::read(filename, options);
         if (auto node = object.cast<vsg::Node>())
         {
-            group->addChild(node);
+            if (convert_mesh)
+            {
+                ConvertMeshToPoints convert(settings);
+                node->accept(convert);
+                auto bricks = convert.bricks;
+
+                auto scene = flat ?
+                    createFlatSceneGraph(bricks, settings) :
+                    createPagedLODSceneGraph(bricks, settings);
+
+                if (scene) group->addChild(scene);
+            }
+
+            if (add_model)
+            {
+                group->addChild(node);
+            }
         }
         else if (auto bricks = object.cast<vsgPoints::Bricks>())
         {
-            std::cout<<"Loaded bricks "<<bricks->size()<<std::endl;
+            auto scene = flat ?
+                createFlatSceneGraph(bricks, settings) :
+                createPagedLODSceneGraph(bricks, settings);
 
-            vsgPoints::Levels levels;
-            levels.push_back(bricks);
-
-            if (settings->bound.valid())
-            {
-                settings->offset = (settings->bound.max + settings->bound.min) * 0.5;
-            }
-
-            while(levels.back()->size() > 1)
-            {
-                auto& source = levels.back();
-
-                levels.push_back(vsgPoints::Bricks::create());
-                auto& destination = levels.back();
-
-                if (!vsgPoints::generateLevel(*source, *destination, *settings)) break;
-            }
-
-            std::cout<<"levels = "<<levels.size()<<std::endl;
-
-            size_t biggestBrick = 0;
-            vsg::t_box<int32_t> keyBounds;
-            for(auto& [key, brick] : *bricks)
-            {
-                keyBounds.add(key.x, key.y, key.z);
-                if (brick->points.size() > biggestBrick) biggestBrick = brick->points.size();
-            }
-            std::cout<<"keyBounds "<<keyBounds<<std::endl;
-            std::cout<<"biggest brick "<<biggestBrick<<std::endl;
-
-            auto transform = vsg::MatrixTransform::create();
-            transform->matrix = vsg::translate(settings->offset);
-
-            if (auto model = createPagedLOD(levels, *settings))
-            {
-                transform->addChild(model);
-            }
-
-            group->addChild(transform);
+            if (scene) group->addChild(scene);
         }
     }
 
@@ -151,7 +225,7 @@ int main(int argc, char** argv)
     double radius = vsg::length(bounds.max - bounds.min) * 0.6;
     double nearFarRatio = 0.001;
 
-    auto lookAt = vsg::LookAt::create(center - vsg::dvec3(0.0, -radius * 3.5, 0.0), center, vsg::dvec3(0.0, 0.0, 1.0));
+    auto lookAt = vsg::LookAt::create(center + vsg::dvec3(0.0, -radius * 3.5, 0.0), center, vsg::dvec3(0.0, 0.0, 1.0));
     auto perspective  = vsg::Perspective::create(30.0, static_cast<double>(window->extent2D().width) / static_cast<double>(window->extent2D().height), nearFarRatio * radius, radius * 4.5);
 
     auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
