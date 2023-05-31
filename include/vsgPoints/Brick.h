@@ -102,3 +102,7 @@ namespace vsgPoints
 
 
 } // namespace vsgPoints
+
+EVSG_type_name(vsgPoints::Settings)
+EVSG_type_name(vsgPoints::Brick)
+EVSG_type_name(vsgPoints::Bricks)
