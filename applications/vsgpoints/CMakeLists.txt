@@ -1,4 +1,5 @@
 set(SOURCES
+    ConvertMeshToPoints.cpp
     vsgpoints.cpp
 )
 
