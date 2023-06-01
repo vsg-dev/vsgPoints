@@ -14,7 +14,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsg/io/ReaderWriter.h>
 
-#include <vsgPoints/Brick.h>
+#include <vsgPoints/Export.h>
 
 namespace vsgPoints
 {

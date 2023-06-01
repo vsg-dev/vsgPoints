@@ -1,7 +1,5 @@
 #include <vsg/all.h>
 
-#include <vsgPoints/Brick.h>
-
 #include "ConvertMeshToPoints.h"
 
 #include <iostream>

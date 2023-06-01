@@ -1,6 +1,6 @@
 #include <vsg/all.h>
 
-#include <vsgPoints/Brick.h>
+#include <vsgPoints/Bricks.h>
 
 #include <iostream>
 

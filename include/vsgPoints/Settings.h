@@ -12,24 +12,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsg/io/ReaderWriter.h>
+#include <vsg/core/Inherit.h>
 
 #include <vsgPoints/Export.h>
 
 namespace vsgPoints
 {
 
-class VSGPOINTS_DECLSPEC AsciiPoints : public vsg::Inherit<vsg::ReaderWriter, AsciiPoints>
-{
-public:
-
-    AsciiPoints();
-
-    vsg::ref_ptr<vsg::Object> read(const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const override;
-
-    std::set<vsg::Path> supportedExtensions;
-
-protected:
-};
+    struct Settings : public vsg::Inherit<vsg::Object, Settings>
+    {
+        size_t numPointsPerBlock = 10000;
+        double precision = 0.001;
+        uint32_t bits = 10;
+        float pointSize = 4.0f;
+        float transition = 0.125f;
+        bool plod = true;
+        vsg::Path path;
+        vsg::Path extension = ".vsgb";
+        vsg::ref_ptr<vsg::Options> options;
+        vsg::dvec3 offset;
+        vsg::dbox bound;
+    };
 
 } // namespace vsgPoints
+
+EVSG_type_name(vsgPoints::Settings)

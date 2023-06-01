@@ -11,6 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 </editor-fold> */
 
 #include <vsgPoints/BIN.h>
+#include <vsgPoints/Bricks.h>
 
 #include <vsg/nodes/MatrixTransform.h>
 #include <vsg/io/Path.h>

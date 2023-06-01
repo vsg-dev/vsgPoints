@@ -10,13 +10,16 @@ set(HEADERS
     ${HEADER_PATH}/AsciiPoints.h
     ${HEADER_PATH}/BIN.h
     ${HEADER_PATH}/Brick.h
+    ${HEADER_PATH}/Bricks.h
     ${HEADER_PATH}/BrickShaderSet.h
+    ${HEADER_PATH}/Settings.h
  )
 
 set(SOURCES
     AsciiPoints.cpp
     BIN.cpp
     Brick.cpp
+    Bricks.cpp
     BrickShaderSet.cpp
 )
 
