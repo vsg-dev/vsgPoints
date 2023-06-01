@@ -132,11 +132,14 @@ int main(int argc, char** argv)
     arguments.read("-t", settings->transition);
     arguments.read("--ps", settings->pointSize);
     arguments.read("--bits", settings->bits);
-    bool flat = arguments.read("--flat");
     bool convert_mesh = arguments.read("--mesh");
     bool add_model = !arguments.read("--no-model");
-    if (arguments.read("--plod")) settings->plod = true;
-    if (arguments.read("--lod")) settings->plod = false;
+
+    bool auto_select_generateType = false;
+    if (arguments.read("--plod")) settings->generateType = vsgPoints::GENERATE_PAGEDLOD;
+    else if (arguments.read("--lod")) settings->generateType = vsgPoints::GENERATE_LOD;
+    else if (arguments.read("--flat")) settings->generateType = vsgPoints::GENERATE_FLAT;
+    else auto_select_generateType = true;
 
     bool writeOnly = false;
     auto outputFilename = arguments.value<vsg::Path>("", "-o");
@@ -165,7 +168,7 @@ int main(int argc, char** argv)
                 node->accept(convert);
                 auto bricks = convert.bricks;
 
-                auto scene = flat ?
+                auto scene = settings->generateType == vsgPoints::GENERATE_FLAT ?
                     createFlatSceneGraph(bricks, settings) :
                     createPagedLODSceneGraph(bricks, settings);
 
@@ -179,7 +182,7 @@ int main(int argc, char** argv)
         }
         else if (auto bricks = object.cast<vsgPoints::Bricks>())
         {
-            auto scene = flat ?
+            auto scene = settings->generateType == vsgPoints::GENERATE_FLAT ?
                 createFlatSceneGraph(bricks, settings) :
                 createPagedLODSceneGraph(bricks, settings);
 

@@ -19,6 +19,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 namespace vsgPoints
 {
 
+    enum GenerateType
+    {
+        GENERATE_FLAT, /// generate a flat scene graph with no LOD/PagedLOD, only suitable for small datasets
+        GENERATE_LOD, /// generate a hierachical LOD scene graph, suitable for small to moderate sized datasets.that can entirely in GPU memory
+        GENERATE_PAGEDLOD, /// generate a PagedLOD scene graph, suitable for large datasets that can't fit entirely in GPU memory
+    };
+
     struct Settings : public vsg::Inherit<vsg::Object, Settings>
     {
         size_t numPointsPerBlock = 10000;
@@ -26,7 +33,9 @@ namespace vsgPoints
         uint32_t bits = 10;
         float pointSize = 4.0f;
         float transition = 0.125f;
-        bool plod = true;
+
+        GenerateType generateType = GENERATE_LOD;
+
         vsg::Path path;
         vsg::Path extension = ".vsgb";
         vsg::ref_ptr<vsg::Options> options;

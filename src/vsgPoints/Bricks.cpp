@@ -243,7 +243,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::subtile(vsgPoints::Settings& settings, vsgPoi
         }
 
 
-        if (settings.plod)
+        if (settings.generateType == GENERATE_PAGEDLOD)
         {
             vsg::Path path = vsg::make_string(settings.path,"/",key.w,"/",key.z,"/",key.y);
             vsg::Path filename = vsg::make_string(key.x, settings.extension);
