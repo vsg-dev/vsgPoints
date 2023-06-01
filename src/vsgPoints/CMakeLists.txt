@@ -10,7 +10,6 @@ set(HEADERS
     ${HEADER_PATH}/AsciiPoints.h
     ${HEADER_PATH}/BIN.h
     ${HEADER_PATH}/Brick.h
-    ${HEADER_PATH}/BrickBuilder.h
     ${HEADER_PATH}/BrickShaderSet.h
  )
 
@@ -18,7 +17,6 @@ set(SOURCES
     AsciiPoints.cpp
     BIN.cpp
     Brick.cpp
-    BrickBuilder.cpp
     BrickShaderSet.cpp
 )
 
