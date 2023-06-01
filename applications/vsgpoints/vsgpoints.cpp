@@ -135,6 +135,8 @@ int main(int argc, char** argv)
     bool flat = arguments.read("--flat");
     bool convert_mesh = arguments.read("--mesh");
     bool add_model = !arguments.read("--no-model");
+    if (arguments.read("--plod")) settings->plod = true;
+    if (arguments.read("--lod")) settings->plod = false;
 
     bool writeOnly = false;
     auto outputFilename = arguments.value<vsg::Path>("", "-o");

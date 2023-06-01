@@ -35,6 +35,7 @@ namespace vsgPoints
         uint32_t bits = 10;
         float pointSize = 4.0f;
         float transition = 0.125f;
+        bool plod = true;
         vsg::Path path;
         vsg::Path extension = ".vsgb";
         vsg::ref_ptr<vsg::Options> options;
