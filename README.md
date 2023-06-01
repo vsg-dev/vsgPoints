@@ -2,6 +2,8 @@
 
 Cross platform, open source (MIT license) C++17 library and example set for rendering large (hundreds of millions) point cloud data using VulkanSceneGraph.
 
+The vsgPoints project contains a vsgPoints library that applications may link to add point cloud loading and scene graph creation capabilities to their applications, and vsgpoints utility program.
+
 ## Dependencies
 
 3rd party dependencies:
@@ -22,30 +24,23 @@ Unix in source build:
     make -j 8
     make install
 
-# Example usage
+# vsgpoints application usage
 
-Generate 1,000,000 point cloud and rendering with a single block of vertices, normals. colours, with vertex and normal data stored as float vec3:
+To view .3dc or .asc point clouds, or .BIN (double x,y,z; uint8_t r, g, b) data :
 
-    vsggeneratepoints -n 1000000
-    vsggeneratepoints -n 1000000 --normals
-    vsggeneratepoints -n 1000000 --colors
-    vsggeneratepoints -n 1000000 --normals --colors
+~~~ sh
+   vsgpoints -i mydata.asc
+~~~~
 
-Generate 1,000,000 point cloud and rendering with bricks with vertex data stored in ubvec4 form and treated as fixed precision 0 to 1.0 x,y,z,w values
+To convert point cloud data to VulkanSceneGraph native format:
 
-    vsggeneratepoints -n 1000000 --brick
-    vsggeneratepoints -n 1000000 --normals --brick
-    vsggeneratepoints -n 1000000 --colors --brick
-    vsggeneratepoints -n 1000000 --normals --colors --brick
+~~~ sh
+   vsgpoints -i mydata.BIN -o mydata.vsgb
+~~~~
 
-Stress test with 200,000,000 points:
+Once you have converted to native .vsgb format you can load the data in any VulkanSceneGraph application:
 
-    vsggeneratepoints -n 200000000 --colors --brick
+~~~ sh
+    vsgviewer mydata.vsgb
+~~~
 
-Write created scene graph to disk as ascii file (.vsgt) :
-
-    vsggeneratepoints -n 1000000 --colors --brick -o point_cloud.vsgt
-
-Write created scene graph to disk as binary file (.vsgb) :
-
-    vsggeneratepoints -n 1000000 --colors --brick -o point_cloud.vsgb

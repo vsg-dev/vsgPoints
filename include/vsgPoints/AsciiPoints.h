@@ -2,7 +2,7 @@
 
 /* <editor-fold desc="MIT License">
 
-Copyright(c) 2022 Robert Osfield
+Copyright(c) 2023 Robert Osfield
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -12,25 +12,24 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsg/nodes/Node.h>
+#include <vsg/io/ReaderWriter.h>
 
-#include <vsgPoints/BrickShaderSet.h>
+#include <vsgPoints/Export.h>
 
 namespace vsgPoints
 {
-    class VSGPOINTS_DECLSPEC BrickBuilder : public vsg::Inherit<vsg::Object, BrickBuilder>
-    {
-    public:
-        vsg::dbox extents;
-        size_t num_x = 0;
-        size_t num_y = 0;
-        size_t num_z = 0;
 
-        vsg::ref_ptr<const vsg::Options> options;
-        vsg::ref_ptr<vsg::Node> root;
+class VSGPOINTS_DECLSPEC AsciiPoints : public vsg::Inherit<vsg::ReaderWriter, AsciiPoints>
+{
+public:
 
-        void add(vsg::ref_ptr<vsg::vec3Array> vertices, vsg::ref_ptr<vsg::vec3Array> normals, vsg::ref_ptr<vsg::ubvec4Array> colors);
+    AsciiPoints();
 
-        vsg::ref_ptr<vsg::Node> build();
-    };
+    vsg::ref_ptr<vsg::Object> read(const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const override;
+
+    std::set<vsg::Path> supportedExtensions;
+
+protected:
+};
+
 } // namespace vsgPoints
