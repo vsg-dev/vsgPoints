@@ -72,7 +72,6 @@ void ConvertMeshToPoints::applyDrawIndexed(uint32_t firstIndex, uint32_t indexCo
 
 void ConvertMeshToPoints::apply(const vsg::Node& node)
 {
-    std::cout<<node.className()<<std::endl;
     node.traverse(*this);
 }
 
@@ -106,14 +105,13 @@ void ConvertMeshToPoints::apply(const vsg::Transform& transform)
 
 void ConvertMeshToPoints::apply(const vsg::LOD& lod)
 {
-    std::cout<<lod.className()<<" "<<std::endl;
-    lod.traverse(*this);
+    if (!lod.children.empty() && lod.children[0].node) lod.children[0].node->accept(*this);
 }
 
 void ConvertMeshToPoints::apply(const vsg::PagedLOD& plod)
 {
-    std::cout<<plod.className()<<" "<<std::endl;
-    plod.traverse(*this);
+    if (plod.children[0].node) plod.children[0].node->accept(*this);
+    else if (plod.children[1].node) plod.children[1].node->accept(*this);
 }
 
 void ConvertMeshToPoints::apply(const vsg::VertexDraw& vid)
