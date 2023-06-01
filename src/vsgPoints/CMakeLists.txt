@@ -13,6 +13,7 @@ set(HEADERS
     ${HEADER_PATH}/Bricks.h
     ${HEADER_PATH}/BrickShaderSet.h
     ${HEADER_PATH}/Settings.h
+    ${HEADER_PATH}/create.h
  )
 
 set(SOURCES
@@ -21,6 +22,7 @@ set(SOURCES
     Brick.cpp
     Bricks.cpp
     BrickShaderSet.cpp
+    create.cpp
 )
 
 add_library(vsgPoints ${HEADERS} ${SOURCES})

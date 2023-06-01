@@ -12,37 +12,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsg/core/Inherit.h>
+#include <vsg/nodes/Node.h>
 
-#include <vsgPoints/Export.h>
+#include <vsgPoints/Bricks.h>
 
 namespace vsgPoints
 {
 
-    enum CreateType
-    {
-        CREATE_FLAT, /// generate a flat scene graph with no LOD/PagedLOD, only suitable for small datasets
-        CREATE_LOD, /// generate a hierachical LOD scene graph, suitable for small to moderate sized datasets.that can entirely in GPU memory
-        CREATE_PAGEDLOD, /// generate a PagedLOD scene graph, suitable for large datasets that can't fit entirely in GPU memory
-    };
+    /// create a scene graph from Bricks using the Setttings as a guide to the type of scene graph to create.
+    extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::Node> createSceneGraph(vsg::ref_ptr<vsgPoints::Bricks> bricks, vsg::ref_ptr<vsgPoints::Settings> settings);
 
-    struct Settings : public vsg::Inherit<vsg::Object, Settings>
-    {
-        size_t numPointsPerBlock = 10000;
-        double precision = 0.001;
-        uint32_t bits = 10;
-        float pointSize = 4.0f;
-        float transition = 0.125f;
-
-        CreateType createType = CREATE_LOD;
-
-        vsg::Path path;
-        vsg::Path extension = ".vsgb";
-        vsg::ref_ptr<vsg::Options> options;
-        vsg::dvec3 offset;
-        vsg::dbox bound;
-    };
+    extern VSGPOINTS_DECLSPEC bool generateLevel(vsgPoints::Bricks& source, vsgPoints::Bricks& destination, const vsgPoints::Settings& settings);
+    extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::StateGroup> createStateGroup(const vsgPoints::Settings& settings);
+    extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::Node> subtile(vsgPoints::Settings& settings, vsgPoints::Levels::reverse_iterator level_itr, vsgPoints::Levels::reverse_iterator end_itr, vsgPoints::Key key, vsg::dbox& bound, bool root = false);
+    extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::Node> createPagedLOD(vsgPoints::Levels& levels, vsgPoints::Settings& settings);
 
 } // namespace vsgPoints
-
-EVSG_type_name(vsgPoints::Settings)

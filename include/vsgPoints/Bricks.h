@@ -54,12 +54,6 @@ namespace vsgPoints
 
     using Levels = std::list<vsg::ref_ptr<Bricks>>;
 
-    extern VSGPOINTS_DECLSPEC bool generateLevel(vsgPoints::Bricks& source, vsgPoints::Bricks& destination, const vsgPoints::Settings& settings);
-    extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::StateGroup> createStateGroup(const vsgPoints::Settings& settings);
-    extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::Node> subtile(vsgPoints::Settings& settings, vsgPoints::Levels::reverse_iterator level_itr, vsgPoints::Levels::reverse_iterator end_itr, vsgPoints::Key key, vsg::dbox& bound, bool root = false);
-    extern VSGPOINTS_DECLSPEC vsg::ref_ptr<vsg::Node> createPagedLOD(vsgPoints::Levels& levels, vsgPoints::Settings& settings);
-
-
 } // namespace vsgPoints
 
 EVSG_type_name(vsgPoints::Bricks)

@@ -6,96 +6,12 @@
 
 #include <vsgPoints/BIN.h>
 #include <vsgPoints/AsciiPoints.h>
-#include <vsgPoints/Brick.h>
+#include <vsgPoints/create.h>
 
 #include "ConvertMeshToPoints.h"
 
 #include <iostream>
 
-vsg::ref_ptr<vsg::Node> createPagedLODSceneGraph(vsg::ref_ptr<vsgPoints::Bricks> bricks, vsg::ref_ptr<vsgPoints::Settings> settings)
-{
-    if (bricks->empty())
-    {
-        std::cout<<"createPagedLODSceneGraph("<<bricks<<", "<<settings<<") bricks is empty(), cannot create scene graph."<<std::endl;
-        return {};
-    }
-
-    vsgPoints::Levels levels;
-    levels.push_back(bricks);
-
-    if (settings->bound.valid())
-    {
-        settings->offset = (settings->bound.max + settings->bound.min) * 0.5;
-    }
-
-    while(levels.back()->size() > 1)
-    {
-        auto& source = levels.back();
-
-        levels.push_back(vsgPoints::Bricks::create());
-        auto& destination = levels.back();
-
-        if (!vsgPoints::generateLevel(*source, *destination, *settings)) break;
-    }
-
-    std::cout<<"levels = "<<levels.size()<<std::endl;
-
-    size_t biggestBrick = 0;
-    vsg::t_box<int32_t> keyBounds;
-    for(auto& [key, brick] : *bricks)
-    {
-        keyBounds.add(key.x, key.y, key.z);
-        if (brick->points.size() > biggestBrick) biggestBrick = brick->points.size();
-    }
-    std::cout<<"keyBounds "<<keyBounds<<std::endl;
-    std::cout<<"biggest brick "<<biggestBrick<<std::endl;
-
-    auto transform = vsg::MatrixTransform::create();
-    transform->matrix = vsg::translate(settings->offset);
-
-    if (auto model = createPagedLOD(levels, *settings))
-    {
-        transform->addChild(model);
-    }
-
-    return transform;
-}
-
-vsg::ref_ptr<vsg::Node> createFlatSceneGraph(vsg::ref_ptr<vsgPoints::Bricks> bricks, vsg::ref_ptr<vsgPoints::Settings> settings)
-{
-    if (bricks->empty())
-    {
-        std::cout<<"createPagedLODSceneGraph("<<bricks<<", "<<settings<<") bricks is empty(), cannot create scene graph."<<std::endl;
-        return {};
-    }
-
-    if (settings->bound.valid())
-    {
-        settings->offset = (settings->bound.max + settings->bound.min) * 0.5;
-    }
-
-    auto cullGroup = vsg::CullGroup::create();
-    cullGroup->bound.center = (settings->bound.max + settings->bound.min) * 0.5;
-    cullGroup->bound.radius = vsg::length(settings->bound.max - settings->bound.min) * 0.5;
-
-    auto transform = vsg::MatrixTransform::create();
-    transform->matrix = vsg::translate(settings->offset);
-    cullGroup->addChild(transform);
-
-    auto group = vsgPoints::createStateGroup(*settings);
-    transform->addChild(group);
-
-    vsg::dbox bound;
-    for(auto& [key, brick] : *bricks)
-    {
-        if (auto node = brick->createRendering(*(bricks->settings), key, bound))
-        {
-            group->addChild(node);
-        }
-    }
-
-    return cullGroup;
-}
 
 int main(int argc, char** argv)
 {
@@ -135,11 +51,9 @@ int main(int argc, char** argv)
     bool convert_mesh = arguments.read("--mesh");
     bool add_model = !arguments.read("--no-model");
 
-    bool auto_select_generateType = false;
-    if (arguments.read("--plod")) settings->generateType = vsgPoints::GENERATE_PAGEDLOD;
-    else if (arguments.read("--lod")) settings->generateType = vsgPoints::GENERATE_LOD;
-    else if (arguments.read("--flat")) settings->generateType = vsgPoints::GENERATE_FLAT;
-    else auto_select_generateType = true;
+    if (arguments.read("--plod")) settings->createType = vsgPoints::CREATE_PAGEDLOD;
+    else if (arguments.read("--lod")) settings->createType = vsgPoints::CREATE_LOD;
+    else if (arguments.read("--flat")) settings->createType = vsgPoints::CREATE_FLAT;
 
     bool writeOnly = false;
     auto outputFilename = arguments.value<vsg::Path>("", "-o");
@@ -168,11 +82,10 @@ int main(int argc, char** argv)
                 node->accept(convert);
                 auto bricks = convert.bricks;
 
-                auto scene = settings->generateType == vsgPoints::GENERATE_FLAT ?
-                    createFlatSceneGraph(bricks, settings) :
-                    createPagedLODSceneGraph(bricks, settings);
-
-                if (scene) group->addChild(scene);
+                if (auto scene = vsgPoints::createSceneGraph(bricks, settings))
+                {
+                    group->addChild(scene);
+                }
             }
 
             if (add_model)
@@ -182,11 +95,10 @@ int main(int argc, char** argv)
         }
         else if (auto bricks = object.cast<vsgPoints::Bricks>())
         {
-            auto scene = settings->generateType == vsgPoints::GENERATE_FLAT ?
-                createFlatSceneGraph(bricks, settings) :
-                createPagedLODSceneGraph(bricks, settings);
-
-            if (scene) group->addChild(scene);
+            if (auto scene = vsgPoints::createSceneGraph(bricks, settings))
+            {
+                group->addChild(scene);
+            }
         }
     }
 
