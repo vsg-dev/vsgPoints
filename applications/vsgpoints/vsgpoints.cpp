@@ -63,16 +63,21 @@ int main(int argc, char** argv)
         settings->extension = vsg::fileExtension(outputFilename);
         writeOnly = !arguments.read({"-v", "--viewer"});
     }
+    else
+    {
+        if (settings->createType == vsgPoints::CREATE_PAGEDLOD)
+        {
+            std::cout<<"PagedLOD generation not possible without output filename. Please specify ouput filename using: -o filename.vsgb"<<std::endl;
+            return 1;
+        }
+    }
 
     auto group = vsg::Group::create();
 
-    vsg::Path filename;
-    while(arguments.read("-m", filename))
+    for (int i = 1; i < argc; ++i)
     {
-    }
+        vsg::Path filename = arguments[i];
 
-    while(arguments.read("-i", filename))
-    {
         auto object = vsg::read(filename, options);
         if (auto node = object.cast<vsg::Node>())
         {

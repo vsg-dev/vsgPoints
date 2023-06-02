@@ -29,13 +29,13 @@ Unix in source build:
 To view .3dc or .asc point clouds, or .BIN (double x,y,z; uint8_t r, g, b) data :
 
 ~~~ sh
-   vsgpoints -i mydata.asc
+   vsgpoints mydata.asc
 ~~~~
 
 To convert point cloud data to VulkanSceneGraph native format:
 
 ~~~ sh
-   vsgpoints -i mydata.BIN -o mydata.vsgb
+   vsgpoints mydata.BIN -o mydata.vsgb
 ~~~~
 
 Once you have converted to native .vsgb format you can load the data in any VulkanSceneGraph application:
@@ -44,3 +44,31 @@ Once you have converted to native .vsgb format you can load the data in any Vulk
     vsgviewer mydata.vsgb
 ~~~
 
+vsgpoints supports generating scene graphs in three ways, the command line options for these are:
+
+| command line option | technique |
+| --lod | using LOD's (the default) |
+| --plod | Generation of paged databases |
+| --flat |  flat group of point bricks |
+
+~~~ sh
+    # create vsg::LOD scene graph
+    vsgpoints mydata.BIN --lad
+    # or just rely upon the default being vsg::LOD scene graph
+    vsgpoints mydata.BIN
+
+    # create a flat group of point bricks
+    vsgpoints mydata.BIN --flat
+
+    # create a paged database, requires a specification of output file
+    vsgpoints mydata.BIN -o paged.vsgb --plod
+~~~
+
+vsgpoints also supports generating points from meshed models, which can be enabled with --mesh
+
+~~~ sh
+    # load a mesh model and convert to points as input rather than required loading of points data.
+    vsgpoints mymodel.gltf --mesh
+~~~
+
+If you don't include an output filename using ~ -o filename.vsb ~ them vsgpoints will automatically create a viewer to view the created scene graph, but if you output to a file no viewer will be created, but if you still want to viewer to appear then add -v option to force the viewer to be created.
