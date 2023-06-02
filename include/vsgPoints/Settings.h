@@ -21,8 +21,8 @@ namespace vsgPoints
 
     enum CreateType
     {
-        CREATE_FLAT, /// generate a flat scene graph with no LOD/PagedLOD, only suitable for small datasets
-        CREATE_LOD, /// generate a hierachical LOD scene graph, suitable for small to moderate sized datasets.that can entirely in GPU memory
+        CREATE_FLAT,     /// generate a flat scene graph with no LOD/PagedLOD, only suitable for small datasets
+        CREATE_LOD,      /// generate a hierachical LOD scene graph, suitable for small to moderate sized datasets.that can entirely in GPU memory
         CREATE_PAGEDLOD, /// generate a PagedLOD scene graph, suitable for large datasets that can't fit entirely in GPU memory
     };
 

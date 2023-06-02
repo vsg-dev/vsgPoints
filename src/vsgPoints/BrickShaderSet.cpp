@@ -12,9 +12,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsgPoints/BrickBuilder.h>
 
+#include "shaders/brick_vert.cpp"
 #include "shaders/standard_flat_shaded_frag.cpp"
 #include "shaders/standard_phong_frag.cpp"
-#include "shaders/brick_vert.cpp"
 
 #include <vsg/all.h>
 #include <vsg/io/Logger.h>

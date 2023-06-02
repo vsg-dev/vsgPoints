@@ -27,10 +27,11 @@ void Bricks::add(const vsg::dvec3& v, const vsg::ubvec4& c)
 {
     settings->bound.add(v);
 
-    auto divide_round = [](int64_t value, int64_t divisor) -> int64_t
-    {
-        if (value < 0) return -1 - (-value / divisor);
-        else return value / divisor;
+    auto divide_round = [](int64_t value, int64_t divisor) -> int64_t {
+        if (value < 0)
+            return -1 - (-value / divisor);
+        else
+            return value / divisor;
     };
 
     double multiplier = 1.0 / settings->precision;
@@ -38,13 +39,13 @@ void Bricks::add(const vsg::dvec3& v, const vsg::ubvec4& c)
 
     vsg::dvec3 scaled_v = v * multiplier;
     vsg::dvec3 rounded_v = {std::round(scaled_v.x), std::round(scaled_v.y), std::round(scaled_v.z)};
-    vsg::t_vec3<int64_t> int64_v = {static_cast<int64_t>(rounded_v.x),  static_cast<int64_t>(rounded_v.y), static_cast<int64_t>(rounded_v.z)};
-    vsg::t_vec3<int64_t> int64_key = { divide_round(int64_v.x, divisor), divide_round(int64_v.y, divisor), divide_round(int64_v.z, divisor)};
-    Key key = { static_cast<int32_t>(int64_key.x), static_cast<int32_t>(int64_key.y), static_cast<int32_t>(int64_key.z), 1};
+    vsg::t_vec3<int64_t> int64_v = {static_cast<int64_t>(rounded_v.x), static_cast<int64_t>(rounded_v.y), static_cast<int64_t>(rounded_v.z)};
+    vsg::t_vec3<int64_t> int64_key = {divide_round(int64_v.x, divisor), divide_round(int64_v.y, divisor), divide_round(int64_v.z, divisor)};
+    Key key = {static_cast<int32_t>(int64_key.x), static_cast<int32_t>(int64_key.y), static_cast<int32_t>(int64_key.z), 1};
 
     PackedPoint packedPoint;
     packedPoint.v.set(int64_v.x - key.x * divisor, int64_v.y - key.y * divisor, int64_v.z - key.z * divisor);
-    packedPoint.c.set(c.r, c.g, c.b, c.a) ;
+    packedPoint.c.set(c.r, c.g, c.b, c.a);
 
     auto& brick = bricks[key];
     if (!brick)

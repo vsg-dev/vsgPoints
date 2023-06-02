@@ -13,9 +13,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsgPoints/BIN.h>
 #include <vsgPoints/Bricks.h>
 
-#include <vsg/nodes/MatrixTransform.h>
 #include <vsg/io/Path.h>
 #include <vsg/io/stream.h>
+#include <vsg/nodes/MatrixTransform.h>
 
 #include <fstream>
 
@@ -34,7 +34,7 @@ struct VsgIOPoint
 #pragma pack()
 
 BIN::BIN() :
-   supportedExtensions{".bin"}
+    supportedExtensions{".bin"}
 {
 }
 
@@ -51,7 +51,7 @@ vsg::ref_ptr<vsg::Object> BIN::read(const vsg::Path& filename, vsg::ref_ptr<cons
 
     if (settings->bits != 8 && settings->bits != 10 && settings->bits != 16)
     {
-        std::cout<<"Error: "<<settings->bits<<" not supported, valid values are 8, 10 and 16."<<std::endl;
+        std::cout << "Error: " << settings->bits << " not supported, valid values are 8, 10 and 16." << std::endl;
         return {};
     }
 
@@ -63,7 +63,7 @@ vsg::ref_ptr<vsg::Object> BIN::read(const vsg::Path& filename, vsg::ref_ptr<cons
     auto points = vsg::Array<VsgIOPoint>::create(settings->numPointsPerBlock);
     uint8_t alpha = 255;
 
-    while(fin)
+    while (fin)
     {
         size_t bytesToRead = settings->numPointsPerBlock * sizeof(VsgIOPoint);
         fin.read(reinterpret_cast<char*>(points->dataPointer()), bytesToRead);
@@ -71,7 +71,7 @@ vsg::ref_ptr<vsg::Object> BIN::read(const vsg::Path& filename, vsg::ref_ptr<cons
         size_t numPointsRead = static_cast<size_t>(fin.gcount()) / sizeof(VsgIOPoint);
         if (numPointsRead == 0) break;
 
-        for(size_t i =0; i<numPointsRead; ++i)
+        for (size_t i = 0; i < numPointsRead; ++i)
         {
             auto& point = (*points)[i];
             bricks->add(point.v, vsg::ubvec4(point.c.r, point.c.g, point.c.b, alpha));
@@ -80,7 +80,7 @@ vsg::ref_ptr<vsg::Object> BIN::read(const vsg::Path& filename, vsg::ref_ptr<cons
 
     if (bricks->empty())
     {
-        std::cout<<"Waring: unable to read file."<<std::endl;
+        std::cout << "Waring: unable to read file." << std::endl;
         return {};
     }
     else

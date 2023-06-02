@@ -21,7 +21,6 @@ namespace vsgPoints
     class VSGPOINTS_DECLSPEC Bricks : public vsg::Inherit<vsg::Object, Bricks>
     {
     public:
-
         Bricks(vsg::ref_ptr<Settings> in_settings = {});
 
         using BrickMap = std::map<Key, vsg::ref_ptr<Brick>>;
@@ -39,7 +38,7 @@ namespace vsgPoints
         iterator find(Key key) { return bricks.find(key); }
         const_iterator find(Key key) const { return bricks.find(key); }
 
-        mapped_type& operator[] (Key key) { return bricks[key]; }
+        mapped_type& operator[](Key key) { return bricks[key]; }
 
         iterator begin() { return bricks.begin(); }
         iterator end() { return bricks.end(); }

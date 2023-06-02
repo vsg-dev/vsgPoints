@@ -15,12 +15,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsg/io/Logger.h>
 #include <vsg/io/write.h>
-#include <vsg/state/material.h>
-#include <vsg/state/ViewDependentState.h>
-#include <vsg/nodes/VertexDraw.h>
-#include <vsg/nodes/StateGroup.h>
 #include <vsg/nodes/LOD.h>
 #include <vsg/nodes/PagedLOD.h>
+#include <vsg/nodes/StateGroup.h>
+#include <vsg/nodes/VertexDraw.h>
+#include <vsg/state/ViewDependentState.h>
+#include <vsg/state/material.h>
 #include <vsg/utils/GraphicsPipelineConfigurator.h>
 
 #include <iostream>
@@ -52,12 +52,12 @@ vsg::ref_ptr<vsg::Node> Brick::createRendering(const Settings& settings, const v
     positionScaleValue->properties.format = VK_FORMAT_R32G32B32A32_SFLOAT;
     pointSizeValue->properties.format = VK_FORMAT_R32G32_SFLOAT;
 
-    if (settings.bits==8)
+    if (settings.bits == 8)
     {
         auto vertices_8bit = vsg::ubvec3Array::create(points.size(), vsg::Data::Properties(VK_FORMAT_R8G8B8_UNORM));
         auto vertex_itr = vertices_8bit->begin();
         auto color_itr = colors->begin();
-        for(auto& point : points)
+        for (auto& point : points)
         {
             (vertex_itr++)->set(static_cast<uint8_t>(point.v.x), static_cast<uint8_t>(point.v.y), static_cast<uint8_t>(point.v.z));
             *(color_itr++) = point.c;
@@ -65,12 +65,12 @@ vsg::ref_ptr<vsg::Node> Brick::createRendering(const Settings& settings, const v
 
         vertices = vertices_8bit;
     }
-    else if (settings.bits==10)
+    else if (settings.bits == 10)
     {
         auto vertices_10bit = vsg::uintArray::create(points.size(), vsg::Data::Properties(VK_FORMAT_A2R10G10B10_UNORM_PACK32));
         auto vertex_itr = vertices_10bit->begin();
         auto color_itr = colors->begin();
-        for(auto& point : points)
+        for (auto& point : points)
         {
             *(vertex_itr++) = 3 << 30 | (static_cast<uint32_t>(point.v.x) << 20) | (static_cast<uint32_t>(point.v.y) << 10) | (static_cast<uint32_t>(point.v.z));
             *(color_itr++) = point.c;
@@ -78,12 +78,12 @@ vsg::ref_ptr<vsg::Node> Brick::createRendering(const Settings& settings, const v
 
         vertices = vertices_10bit;
     }
-    else if (settings.bits==16)
+    else if (settings.bits == 16)
     {
         auto vertices_16bit = vsg::usvec3Array::create(points.size(), vsg::Data::Properties(VK_FORMAT_R16G16B16_UNORM));
         auto vertex_itr = vertices_16bit->begin();
         auto color_itr = colors->begin();
-        for(auto& point : points)
+        for (auto& point : points)
         {
             (vertex_itr++)->set(static_cast<uint16_t>(point.v.x), static_cast<uint16_t>(point.v.y), static_cast<uint16_t>(point.v.z));
             *(color_itr++) = point.c;
@@ -95,7 +95,6 @@ vsg::ref_ptr<vsg::Node> Brick::createRendering(const Settings& settings, const v
     {
         return {};
     }
-
 
     // set up vertexDraw that will do the rendering.
     auto vertexDraw = vsg::VertexDraw::create();
@@ -114,7 +113,7 @@ vsg::ref_ptr<vsg::Node> Brick::createRendering(const Settings& settings, Key key
     vsg::dvec3 position(static_cast<double>(key.x) * brickSize, static_cast<double>(key.y) * brickSize, static_cast<double>(key.z) * brickSize);
     position -= settings.offset;
 
-    for(auto& point : points)
+    for (auto& point : points)
     {
         auto& v = point.v;
         bound.add(position.x + brickPrecision * static_cast<double>(v.x),
@@ -122,9 +121,8 @@ vsg::ref_ptr<vsg::Node> Brick::createRendering(const Settings& settings, Key key
                   position.z + brickPrecision * static_cast<double>(v.z));
     }
 
-    vsg::vec2 pointSize(brickPrecision*settings.pointSize, brickPrecision);
+    vsg::vec2 pointSize(brickPrecision * settings.pointSize, brickPrecision);
     vsg::vec4 positionScale(position.x, position.y, position.z, brickSize);
 
     return createRendering(settings, positionScale, pointSize);
 }
-

@@ -10,19 +10,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsgPoints/create.h>
 #include <vsgPoints/BrickShaderSet.h>
+#include <vsgPoints/create.h>
 
 #include <vsg/io/Logger.h>
 #include <vsg/io/write.h>
-#include <vsg/state/material.h>
-#include <vsg/state/ViewDependentState.h>
-#include <vsg/nodes/VertexDraw.h>
-#include <vsg/nodes/StateGroup.h>
-#include <vsg/nodes/MatrixTransform.h>
 #include <vsg/nodes/CullGroup.h>
 #include <vsg/nodes/LOD.h>
+#include <vsg/nodes/MatrixTransform.h>
 #include <vsg/nodes/PagedLOD.h>
+#include <vsg/nodes/StateGroup.h>
+#include <vsg/nodes/VertexDraw.h>
+#include <vsg/state/ViewDependentState.h>
+#include <vsg/state/material.h>
 #include <vsg/utils/GraphicsPipelineConfigurator.h>
 
 #include <iostream>
@@ -33,7 +33,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createSceneGraph(vsg::ref_ptr<vsgPoints::Bric
 {
     if (bricks->empty())
     {
-        std::cout<<"createSceneGraph("<<bricks<<", "<<settings<<") bricks is empty(), cannot create scene graph."<<std::endl;
+        std::cout << "createSceneGraph(" << bricks << ", " << settings << ") bricks is empty(), cannot create scene graph." << std::endl;
         return {};
     }
 
@@ -57,7 +57,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createSceneGraph(vsg::ref_ptr<vsgPoints::Bric
         transform->addChild(group);
 
         vsg::dbox bound;
-        for(auto& [key, brick] : *bricks)
+        for (auto& [key, brick] : *bricks)
         {
             if (auto node = brick->createRendering(*(bricks->settings), key, bound))
             {
@@ -72,14 +72,14 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createSceneGraph(vsg::ref_ptr<vsgPoints::Bric
         auto transform = vsg::MatrixTransform::create();
 
         vsg::t_box<int32_t> keyBounds;
-        for(auto& [key, brick] : *bricks)
+        for (auto& [key, brick] : *bricks)
         {
             keyBounds.add(key.x, key.y, key.z);
         }
 
         auto key_origin = keyBounds.min;
         auto translated_bricks = Bricks::create();
-        for(auto& [key, brick] : *bricks)
+        for (auto& [key, brick] : *bricks)
         {
             (*translated_bricks)[Key{key.x - key_origin.x, key.y - key_origin.y, key.z - key_origin.z, key.w}] = brick;
         }
@@ -100,7 +100,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createSceneGraph(vsg::ref_ptr<vsgPoints::Bric
         vsgPoints::Levels levels;
         levels.push_back(bricks);
 
-        while(levels.back()->size() > 1)
+        while (levels.back()->size() > 1)
         {
             auto& source = levels.back();
 
@@ -110,8 +110,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createSceneGraph(vsg::ref_ptr<vsgPoints::Bric
             if (!vsgPoints::generateLevel(*source, *destination, *settings)) break;
         }
 
-        std::cout<<"levels = "<<levels.size()<<std::endl;
-
+        std::cout << "levels = " << levels.size() << std::endl;
 
         if (auto model = createPagedLOD(levels, *settings))
         {
@@ -125,7 +124,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createSceneGraph(vsg::ref_ptr<vsgPoints::Bric
 bool vsgPoints::generateLevel(vsgPoints::Bricks& source, vsgPoints::Bricks& destination, const vsgPoints::Settings& settings)
 {
     int32_t bits = settings.bits;
-    for(auto& [source_key, source_brick] : source)
+    for (auto& [source_key, source_brick] : source)
     {
         vsgPoints::Key destination_key = {source_key.x / 2, source_key.y / 2, source_key.z / 2, source_key.w * 2};
         vsg::ivec3 offset = {(source_key.x & 1) << bits, (source_key.y & 1) << bits, (source_key.z & 1) << bits};
@@ -136,19 +135,18 @@ bool vsgPoints::generateLevel(vsgPoints::Bricks& source, vsgPoints::Bricks& dest
         auto& source_points = source_brick->points;
         auto& desintation_points = destinatio_brick->points;
         size_t count = source_points.size();
-        for(size_t i = 0; i < count; i+= 4)
+        for (size_t i = 0; i < count; i += 4)
         {
             auto& p = source_points[i];
 
             vsgPoints::PackedPoint new_p;
-            new_p.v.x = static_cast<uint16_t>((static_cast<int32_t>(p.v.x) + offset.x)/2);
-            new_p.v.y = static_cast<uint16_t>((static_cast<int32_t>(p.v.y) + offset.y)/2);
-            new_p.v.z = static_cast<uint16_t>((static_cast<int32_t>(p.v.z) + offset.z)/2);
+            new_p.v.x = static_cast<uint16_t>((static_cast<int32_t>(p.v.x) + offset.x) / 2);
+            new_p.v.y = static_cast<uint16_t>((static_cast<int32_t>(p.v.y) + offset.y) / 2);
+            new_p.v.z = static_cast<uint16_t>((static_cast<int32_t>(p.v.z) + offset.z) / 2);
             new_p.c = p.c;
 
             desintation_points.push_back(new_p);
         }
-
     }
     return !destination.empty();
 }
@@ -163,15 +161,15 @@ vsg::ref_ptr<vsg::StateGroup> vsgPoints::createStateGroup(const vsgPoints::Setti
     auto& defines = config->shaderHints->defines;
     defines.insert("VSG_POINT_SPRITE");
 
-    if (settings.bits==8)
+    if (settings.bits == 8)
     {
         config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::ubvec3), VK_FORMAT_R8G8B8_UNORM);
     }
-    else if (settings.bits==10)
+    else if (settings.bits == 10)
     {
         config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, 4, VK_FORMAT_A2R10G10B10_UNORM_PACK32);
     }
-    else if (settings.bits==16)
+    else if (settings.bits == 16)
     {
         config->enableArray("vsg_Vertex", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::usvec3), VK_FORMAT_R16G16B16_UNORM);
     }
@@ -253,13 +251,13 @@ vsg::ref_ptr<vsg::Node> vsgPoints::subtile(vsgPoints::Settings& settings, vsgPoi
         vsg::dbox subtiles_bound;
 
         if (auto child = subtile(settings, next_itr, end_itr, subkey, subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(1, 0, 0, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(0, 1, 0, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(1, 1, 0, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(0, 0, 1, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(1, 0, 1, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(0, 1, 1, 0), subtiles_bound)) children[num_children++] = child;
-        if (auto child = subtile(settings, next_itr, end_itr, subkey+vsgPoints::Key(1, 1, 1, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey + vsgPoints::Key(1, 0, 0, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey + vsgPoints::Key(0, 1, 0, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey + vsgPoints::Key(1, 1, 0, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey + vsgPoints::Key(0, 0, 1, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey + vsgPoints::Key(1, 0, 1, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey + vsgPoints::Key(0, 1, 1, 0), subtiles_bound)) children[num_children++] = child;
+        if (auto child = subtile(settings, next_itr, end_itr, subkey + vsgPoints::Key(1, 1, 1, 0), subtiles_bound)) children[num_children++] = child;
 
         vsg::dbox local_bound;
         auto brick_node = brick->createRendering(settings, key, local_bound);
@@ -285,34 +283,33 @@ vsg::ref_ptr<vsg::Node> vsgPoints::subtile(vsgPoints::Settings& settings, vsgPoi
             vsg::dvec3 subtilesSize = (subtiles_bound.max - subtiles_bound.min);
             double maxSize = std::max(brickPrecision, std::max(std::max(subtilesSize.x, subtilesSize.y), subtilesSize.z));
 
-            transition *= (maxSize/brickSize);
+            transition *= (maxSize / brickSize);
 
             // vsg::info("maxSize = ", maxSize,", brickSize = ",brickSize,", ratio = ",maxSize/brickSize);
         }
         else
         {
-            vsg::info("Warning: unable to set PagedLOD bounds, num_children = ", num_children );
+            vsg::info("Warning: unable to set PagedLOD bounds, num_children = ", num_children);
             bs.center = (local_bound.min + local_bound.max) * 0.5;
             bs.radius = vsg::length(local_bound.max - local_bound.max) * 0.5;
         }
 
-
         if (settings.createType == CREATE_PAGEDLOD)
         {
-            vsg::Path path = vsg::make_string(settings.path,"/",key.w,"/",key.z,"/",key.y);
+            vsg::Path path = vsg::make_string(settings.path, "/", key.w, "/", key.z, "/", key.y);
             vsg::Path filename = vsg::make_string(key.x, settings.extension);
-            vsg::Path full_path = path/filename;
+            vsg::Path full_path = path / filename;
 
             vsg::makeDirectory(path);
 
-            if (num_children==1)
+            if (num_children == 1)
             {
                 vsg::write(children[0], full_path);
             }
             else
             {
                 auto group = vsg::Group::create();
-                for(size_t i = 0; i < num_children; ++i)
+                for (size_t i = 0; i < num_children; ++i)
                 {
                     group->addChild(children[i]);
                 }
@@ -321,7 +318,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::subtile(vsgPoints::Settings& settings, vsgPoi
 
             auto plod = vsg::PagedLOD::create();
             plod->bound = bs;
-            plod->children[0] = vsg::PagedLOD::Child{transition, {}}; // external child visible when it's bound occupies more than ~1/4 of the height of the window
+            plod->children[0] = vsg::PagedLOD::Child{transition, {}};  // external child visible when it's bound occupies more than ~1/4 of the height of the window
             plod->children[1] = vsg::PagedLOD::Child{0.0, brick_node}; // visible always
 
             if (root)
@@ -330,7 +327,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::subtile(vsgPoints::Settings& settings, vsgPoi
             }
             else
             {
-                plod->filename = vsg::Path("../../../..")/full_path;
+                plod->filename = vsg::Path("../../../..") / full_path;
             }
 
             //vsg::info("plod ", key, " ", brick, " plod ", plod, ", brick->points.size() = ",  brick->points.size());
@@ -340,14 +337,14 @@ vsg::ref_ptr<vsg::Node> vsgPoints::subtile(vsgPoints::Settings& settings, vsgPoi
         else
         {
             vsg::ref_ptr<vsg::Node> child_node;
-            if (num_children==1)
+            if (num_children == 1)
             {
                 child_node = children[0];
             }
             else
             {
                 auto group = vsg::Group::create();
-                for(size_t i = 0; i < num_children; ++i)
+                for (size_t i = 0; i < num_children; ++i)
                 {
                     group->addChild(children[i]);
                 }
@@ -358,7 +355,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::subtile(vsgPoints::Settings& settings, vsgPoi
             auto lod = vsg::LOD::create();
             lod->bound = bs;
             lod->addChild(vsg::LOD::Child{transition, child_node}); // high res child
-            lod->addChild(vsg::LOD::Child{0.0, brick_node}); // lower res child
+            lod->addChild(vsg::LOD::Child{0.0, brick_node});        // lower res child
 
             //vsg::info("lod ", key, " ", brick, " lod ", lod, ", brick->points.size() = ",  brick->points.size());
 
@@ -384,7 +381,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createPagedLOD(vsgPoints::Levels& levels, vsg
     std::basic_ostringstream<vsg::Path::value_type> str;
 
     double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
-    double rootBrickSize = brickSize * std::pow(2.0, levels.size()-1);
+    double rootBrickSize = brickSize * std::pow(2.0, levels.size() - 1);
 
     vsg::info("rootBrickSize  = ", rootBrickSize);
 
@@ -392,7 +389,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createPagedLOD(vsgPoints::Levels& levels, vsg
     if (levels.size() == 1)
     {
         vsg::dbox bound;
-        for(auto& [key, brick] : *(levels.back()))
+        for (auto& [key, brick] : *(levels.back()))
         {
             auto tile = brick->createRendering(settings, key, bound);
             stateGroup->addChild(tile);
@@ -409,9 +406,9 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createPagedLOD(vsgPoints::Levels& levels, vsg
     auto& root_level = *current_itr;
     vsg::info("root level ", root_level->size());
 
-    for(auto& [key, brick] : *root_level)
+    for (auto& [key, brick] : *root_level)
     {
-        vsg::info("root key = ", key, " ",brick);
+        vsg::info("root key = ", key, " ", brick);
         vsg::dbox bound;
         if (auto child = subtile(settings, current_itr, levels.rend(), key, bound, true))
         {

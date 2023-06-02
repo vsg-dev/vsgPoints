@@ -16,7 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 namespace vsgPoints
 {
-    #pragma pack(1)
+#pragma pack(1)
 
     struct PackedPoint
     {
@@ -24,14 +24,13 @@ namespace vsgPoints
         vsg::ubvec4 c;
     };
 
-    #pragma pack()
+#pragma pack()
 
     using Key = vsg::ivec4;
 
     class VSGPOINTS_DECLSPEC Brick : public vsg::Inherit<vsg::Object, Brick>
     {
     public:
-
         Brick();
 
         std::vector<PackedPoint> points;

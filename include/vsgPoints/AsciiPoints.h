@@ -19,17 +19,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 namespace vsgPoints
 {
 
-class VSGPOINTS_DECLSPEC AsciiPoints : public vsg::Inherit<vsg::ReaderWriter, AsciiPoints>
-{
-public:
+    class VSGPOINTS_DECLSPEC AsciiPoints : public vsg::Inherit<vsg::ReaderWriter, AsciiPoints>
+    {
+    public:
+        AsciiPoints();
 
-    AsciiPoints();
+        vsg::ref_ptr<vsg::Object> read(const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const override;
 
-    vsg::ref_ptr<vsg::Object> read(const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const override;
+        std::set<vsg::Path> supportedExtensions;
 
-    std::set<vsg::Path> supportedExtensions;
-
-protected:
-};
+    protected:
+    };
 
 } // namespace vsgPoints

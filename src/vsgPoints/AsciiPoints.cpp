@@ -13,10 +13,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsgPoints/AsciiPoints.h>
 #include <vsgPoints/Bricks.h>
 
-#include <vsg/nodes/MatrixTransform.h>
 #include <vsg/io/Path.h>
-#include <vsg/io/stream.h>
 #include <vsg/io/read_line.h>
+#include <vsg/io/stream.h>
+#include <vsg/nodes/MatrixTransform.h>
 
 #include <fstream>
 
@@ -25,7 +25,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 using namespace vsgPoints;
 
 AsciiPoints::AsciiPoints() :
-   supportedExtensions{".3dc", ".asc"}
+    supportedExtensions{".3dc", ".asc"}
 {
 }
 
@@ -42,7 +42,7 @@ vsg::ref_ptr<vsg::Object> AsciiPoints::read(const vsg::Path& filename, vsg::ref_
 
     if (settings->bits != 8 && settings->bits != 10 && settings->bits != 16)
     {
-        std::cout<<"Error: "<<settings->bits<<" not supported, valid values are 8, 10 and 16."<<std::endl;
+        std::cout << "Error: " << settings->bits << " not supported, valid values are 8, 10 and 16." << std::endl;
         return {};
     }
 
@@ -52,7 +52,7 @@ vsg::ref_ptr<vsg::Object> AsciiPoints::read(const vsg::Path& filename, vsg::ref_
     uint8_t alpha = 255;
 
     std::ifstream fin(filenameToUse);
-    while(fin)
+    while (fin)
     {
         if (auto numValuesRead = vsg::read_line(fin, values->data(), values->size()))
         {
