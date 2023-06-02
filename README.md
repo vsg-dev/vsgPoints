@@ -1,6 +1,10 @@
 # vsgPoints - VulkanSceneGraph Point Cloud rendering
 
-Cross platform, open source (MIT license) C++17 library and example set for rendering large (hundreds of millions) point cloud data using VulkanSceneGraph.
+Cross platform, open source (MIT license) C++17 library and example set for rendering large point cloud data using VulkanSceneGraph. vsgPoints provides support for generating hieracical LOD and pagaed LOD scene graph hierachy to provide excellent performance and scalability. The support for database paging enables handling of very large point databases - over a billion point datasets run at a solid 60fps even on integrated GPUs.
+
+To enable efficient use of main and GPU memory point data is segmenent into bricks and the source x, y, z values are quantized to 8bit, 10bit or 16bit values. Using the vsgPoints::Settings structure users can select the precision (default of 1mm) and bit representation they require, the higher precision and lower the brick count the smaller the bricks that will be used. The quantized data is packed into formats support by graphics hardware enabling the vertex shaders to compute the final positions without any intermendiate conversions.
+
+To enable handling of point data with very large woorld cooridnates the data is translated to a local orign with a vsg::MatrixTransform used to place the rendered points in their properly world coordinate system.
 
 The vsgPoints project contains a vsgPoints library that applications may link to add point cloud loading and scene graph creation capabilities to their applications, and vsgpoints utility program.
 
@@ -72,3 +76,10 @@ vsgpoints also supports generating points from meshed models, which can be enabl
 ~~~
 
 If you don't include an output filename using ~ -o filename.vsb ~ them vsgpoints will automatically create a viewer to view the created scene graph, but if you output to a file no viewer will be created, but if you still want to viewer to appear then add -v option to force the viewer to be created.
+
+To alter the precision and point size you can use the -p size_in_metres and --ps multiplier control the precision (defaults to 0.001) and point size (defaults to 4 x precision).
+
+~~~ sh
+    # choose 5mm precision and ~50mm rendered point size (10 x 0.005)
+    vsgpoints mydata.3dc -p 0.005 --ps 10
+~~~
