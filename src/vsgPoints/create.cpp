@@ -39,14 +39,15 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createSceneGraph(vsg::ref_ptr<vsgPoints::Bric
 
     if (settings->createType == vsgPoints::CREATE_FLAT)
     {
-        if (settings->bound.valid())
-        {
-            settings->offset = (settings->bound.max + settings->bound.min) * 0.5;
-        }
 
         auto cullGroup = vsg::CullGroup::create();
         cullGroup->bound.center = (settings->bound.max + settings->bound.min) * 0.5;
         cullGroup->bound.radius = vsg::length(settings->bound.max - settings->bound.min) * 0.5;
+
+        if (settings->bound.valid())
+        {
+            settings->offset = (settings->bound.max + settings->bound.min) * 0.5;
+        }
 
         auto transform = vsg::MatrixTransform::create();
         transform->matrix = vsg::translate(settings->offset);
@@ -68,13 +69,36 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createSceneGraph(vsg::ref_ptr<vsgPoints::Bric
     }
     else
     {
+        auto transform = vsg::MatrixTransform::create();
+
+        vsg::t_box<int32_t> keyBounds;
+        for(auto& [key, brick] : *bricks)
+        {
+            keyBounds.add(key.x, key.y, key.z);
+        }
+
+        auto key_origin = keyBounds.min;
+        auto translated_bricks = Bricks::create();
+        for(auto& [key, brick] : *bricks)
+        {
+            (*translated_bricks)[Key{key.x - key_origin.x, key.y - key_origin.y, key.z - key_origin.z, key.w}] = brick;
+        }
+
+        bricks = translated_bricks;
+
+        double brickPrecision = settings->precision;
+        double brickSize = brickPrecision * pow(2.0, static_cast<double>(settings->bits));
+
+        vsg::dvec3 offset(static_cast<double>(key_origin.x) * brickSize,
+                          static_cast<double>(key_origin.y) * brickSize,
+                          static_cast<double>(key_origin.z) * brickSize);
+
+        settings->offset = vsg::dvec3(0.0, 0.0, 0.0);
+
+        transform->matrix = vsg::translate(offset);
+
         vsgPoints::Levels levels;
         levels.push_back(bricks);
-
-        if (settings->bound.valid())
-        {
-            settings->offset = (settings->bound.max + settings->bound.min) * 0.5;
-        }
 
         while(levels.back()->size() > 1)
         {
@@ -88,18 +112,6 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createSceneGraph(vsg::ref_ptr<vsgPoints::Bric
 
         std::cout<<"levels = "<<levels.size()<<std::endl;
 
-        size_t biggestBrick = 0;
-        vsg::t_box<int32_t> keyBounds;
-        for(auto& [key, brick] : *bricks)
-        {
-            keyBounds.add(key.x, key.y, key.z);
-            if (brick->points.size() > biggestBrick) biggestBrick = brick->points.size();
-        }
-        std::cout<<"keyBounds "<<keyBounds<<std::endl;
-        std::cout<<"biggest brick "<<biggestBrick<<std::endl;
-
-        auto transform = vsg::MatrixTransform::create();
-        transform->matrix = vsg::translate(settings->offset);
 
         if (auto model = createPagedLOD(levels, *settings))
         {
