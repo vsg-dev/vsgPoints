@@ -33,7 +33,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createSceneGraph(vsg::ref_ptr<vsgPoints::Bric
 {
     if (bricks->empty())
     {
-        std::cout << "createSceneGraph(" << bricks << ", " << settings << ") bricks is empty(), cannot create scene graph." << std::endl;
+        vsg::warn("createSceneGraph(", bricks, ", ", settings, ") bricks is empty(), cannot create scene graph.");
         return {};
     }
 
@@ -110,7 +110,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createSceneGraph(vsg::ref_ptr<vsgPoints::Bric
             if (!vsgPoints::generateLevel(*source, *destination, *settings)) break;
         }
 
-        std::cout << "levels = " << levels.size() << std::endl;
+        vsg::debug("levels = ", levels.size());
 
         if (auto model = createPagedLOD(levels, *settings))
         {
@@ -289,7 +289,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::subtile(vsgPoints::Settings& settings, vsgPoi
         }
         else
         {
-            vsg::info("Warning: unable to set PagedLOD bounds, num_children = ", num_children);
+            vsg::warn("unable to set PagedLOD bounds, num_children = ", num_children);
             bs.center = (local_bound.min + local_bound.max) * 0.5;
             bs.radius = vsg::length(local_bound.max - local_bound.max) * 0.5;
         }
@@ -383,7 +383,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createPagedLOD(vsgPoints::Levels& levels, vsg
     double brickSize = settings.precision * pow(2.0, static_cast<double>(settings.bits));
     double rootBrickSize = brickSize * std::pow(2.0, levels.size() - 1);
 
-    vsg::info("rootBrickSize  = ", rootBrickSize);
+    vsg::debug("rootBrickSize  = ", rootBrickSize);
 
     // If only one level is present then PagedLOD not required so just add all the levels bricks to the StateGroup
     if (levels.size() == 1)
@@ -404,15 +404,15 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createPagedLOD(vsgPoints::Levels& levels, vsg
 
     // root tile
     auto& root_level = *current_itr;
-    vsg::info("root level ", root_level->size());
+    vsg::debug("root level ", root_level->size());
 
     for (auto& [key, brick] : *root_level)
     {
-        vsg::info("root key = ", key, " ", brick);
+        vsg::debug("root key = ", key, " ", brick);
         vsg::dbox bound;
         if (auto child = subtile(settings, current_itr, levels.rend(), key, bound, true))
         {
-            vsg::info("root child ", child);
+            vsg::debug("root child ", child);
             stateGroup->addChild(child);
         }
     }

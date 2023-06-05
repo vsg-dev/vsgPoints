@@ -10,8 +10,30 @@
 
 #include "ConvertMeshToPoints.h"
 
+#include <iomanip>
 #include <iostream>
 
+template<typename T>
+std::string format_number(T v)
+{
+    std::vector<T> parts;
+    do
+    {
+        parts.push_back(v % 1000);
+        v /= 1000;
+    } while (v > 0);
+
+    std::stringstream s;
+    auto itr = parts.rbegin();
+    s << *(itr++);
+    while(itr != parts.rend())
+    {
+        s << ',';
+        s << std::setfill('0') << std::setw(3) << *(itr++);
+    }
+
+    return s.str();
+}
 
 int main(int argc, char** argv)
 {
@@ -38,6 +60,22 @@ int main(int argc, char** argv)
     if (size_t nodesBlockSize; arguments.read("--nodes", nodesBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_NODES, nodesBlockSize);
     if (size_t dataBlockSize; arguments.read("--data", dataBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_DATA, dataBlockSize);
 
+    auto windowTraits = vsg::WindowTraits::create();
+    windowTraits->windowTitle = "vsgpoints";
+    windowTraits->debugLayer = arguments.read({"--debug", "-d"});
+    windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
+    if (arguments.read("--test"))
+    {
+        windowTraits->swapchainPreferences.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+        windowTraits->fullscreen = true;
+    }
+    if (arguments.read({"--st", "--small-test"}))
+    {
+        windowTraits->swapchainPreferences.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+        windowTraits->width = 192, windowTraits->height = 108;
+        windowTraits->decoration = false;
+    }
+
     // set up the Settings used to guide how point clouds are setup in the scene graph
     auto settings = vsgPoints::Settings::create();
     options->setObject("settings", settings);
@@ -48,6 +86,7 @@ int main(int argc, char** argv)
     arguments.read("-t", settings->transition);
     arguments.read("--ps", settings->pointSize);
     arguments.read("--bits", settings->bits);
+    auto maxPagedLOD = arguments.value(0, "--maxPagedLOD");
     bool convert_mesh = arguments.read("--mesh");
     bool add_model = !arguments.read("--no-model");
 
@@ -78,7 +117,11 @@ int main(int argc, char** argv)
     {
         vsg::Path filename = arguments[i];
 
+        auto before_read = vsg::clock::now();
         auto object = vsg::read(filename, options);
+        double time_to_read = std::chrono::duration<double, std::chrono::seconds::period>(vsg::clock::now() - before_read).count();
+        std::cout<<"Time to read points = "<<time_to_read<<" seconds"<<std::endl;
+
         if (auto node = object.cast<vsg::Node>())
         {
             if (convert_mesh)
@@ -87,6 +130,7 @@ int main(int argc, char** argv)
                 node->accept(convert);
                 auto bricks = convert.bricks;
 
+                std::cout<<"Created mesh to "<<format_number(bricks->count())<<" points."<<std::endl;
                 if (auto scene = vsgPoints::createSceneGraph(bricks, settings))
                 {
                     group->addChild(scene);
@@ -100,10 +144,14 @@ int main(int argc, char** argv)
         }
         else if (auto bricks = object.cast<vsgPoints::Bricks>())
         {
+            std::cout<<"Read "<<format_number(bricks->count())<<" points."<<std::endl;
+            auto before_create = vsg::clock::now();
             if (auto scene = vsgPoints::createSceneGraph(bricks, settings))
             {
                 group->addChild(scene);
             }
+            double time_to_create = std::chrono::duration<double, std::chrono::seconds::period>(vsg::clock::now() - before_create).count();
+            std::cout<<"Time to create scene graph = "<<time_to_create<<" seconds"<<std::endl;
         }
     }
 
@@ -126,9 +174,6 @@ int main(int argc, char** argv)
         if (writeOnly) return 0;
     }
 
-    auto windowTraits = vsg::WindowTraits::create();
-    windowTraits->debugLayer = arguments.read({"--debug", "-d"});
-    windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
 
     auto viewer = vsg::Viewer::create();
     auto window = vsg::Window::create(windowTraits);
@@ -161,6 +206,17 @@ int main(int argc, char** argv)
 
     viewer->compile();
 
+    if (maxPagedLOD > 0)
+    {
+        // set targetMaxNumPagedLODWithHighResSubgraphs after Viewer::compile() as it will assign any DatabasePager if required.
+        for(auto& task : viewer->recordAndSubmitTasks)
+        {
+            if (task->databasePager) task->databasePager->targetMaxNumPagedLODWithHighResSubgraphs = maxPagedLOD;
+        }
+    }
+
+    viewer->start_point() = vsg::clock::now();
+
     // rendering main loop
     while (viewer->advanceToNextFrame())
     {
@@ -173,6 +229,10 @@ int main(int argc, char** argv)
 
         viewer->present();
     }
+
+    auto fs = viewer->getFrameStamp();
+    double fps = static_cast<double>(fs->frameCount) / std::chrono::duration<double, std::chrono::seconds::period>(vsg::clock::now() - viewer->start_point()).count();
+    std::cout<<"Average frame rate = "<<fps<<" fps"<<std::endl;
 
     return 0;
 }

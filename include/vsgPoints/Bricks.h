@@ -49,6 +49,9 @@ namespace vsgPoints
         bool empty() const { return bricks.empty(); }
 
         size_t size() const { return bricks.size(); }
+
+        // number of points
+        size_t count() const;
     };
 
     using Levels = std::list<vsg::ref_ptr<Bricks>>;
