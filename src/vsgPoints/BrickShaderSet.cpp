@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsgPoints/BrickBuilder.h>
+#include <vsgPoints/BrickShaderSet.h>
 
 #include "shaders/brick_vert.cpp"
 #include "shaders/standard_flat_shaded_frag.cpp"
