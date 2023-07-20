@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.12)
 
 project(vsgPoints
-    VERSION 0.0.0
+    VERSION 0.1.0
     DESCRIPTION "VulkanSceneGraph Point Cloud rendering."
     LANGUAGES CXX
 )
 set(VSGPOINTS_SOVERSION 0)
-SET(VSGPOINTS_RELEASE_CANDIDATE 0)
+SET(VSGPOINTS_RELEASE_CANDIDATE 1)
 
 set(VSGPOINTS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "Root source directory of vsgPoints")
 set(VSGPOINTS_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE INTERNAL "Root binary directory of vsgPoints")
