@@ -184,22 +184,18 @@ vsg::ref_ptr<vsg::StateGroup> vsgPoints::createStateGroup(const vsgPoints::Setti
     config->enableArray("vsg_PositionScale", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec4), VK_FORMAT_R32G32B32A32_SFLOAT);
     config->enableArray("vsg_PointSize", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec2), VK_FORMAT_R32G32_SFLOAT);
 
-    vsg::Descriptors descriptors;
     if (textureData)
     {
         auto sampler = vsg::Sampler::create();
         sampler->addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         sampler->addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        config->assignTexture(descriptors, "diffuseMap", textureData, sampler);
+        config->assignTexture("diffuseMap", textureData, sampler);
     }
 
     auto mat = vsg::PhongMaterialValue::create();
     mat->value().alphaMask = 1.0f;
     mat->value().alphaMaskCutoff = 0.0025f;
-    config->assignUniform(descriptors, "material", mat);
-
-    auto vdsl = vsg::ViewDescriptorSetLayout::create();
-    config->additionalDescriptorSetLayout = vdsl;
+    config->assignUniform("material", mat);
 
     config->colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
         {blending, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
@@ -208,19 +204,10 @@ vsg::ref_ptr<vsg::StateGroup> vsgPoints::createStateGroup(const vsgPoints::Setti
 
     config->init();
 
-    auto descriptorSet = vsg::DescriptorSet::create(config->descriptorSetLayout, descriptors);
-    auto bindDescriptorSet = vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, config->layout, 0, descriptorSet);
-
     // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
     auto stateGroup = vsg::StateGroup::create();
-    stateGroup->add(config->bindGraphicsPipeline);
-    stateGroup->add(bindDescriptorSet);
 
-    // assign any custom ArrayState that may be required.
-    stateGroup->prototypeArrayState = shaderSet->getSuitableArrayState(config->shaderHints->defines);
-
-    auto bindViewDescriptorSets = vsg::BindViewDescriptorSets::create(VK_PIPELINE_BIND_POINT_GRAPHICS, config->layout, 1);
-    stateGroup->add(bindViewDescriptorSets);
+    config->copyTo(stateGroup);
 
     return stateGroup;
 }

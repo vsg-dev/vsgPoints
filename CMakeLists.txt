@@ -19,8 +19,8 @@ if (VULKAN_SDK)
     set(ENV{VULKAN_SDK} ${VULKAN_SDK})
 endif()
 
-find_package(vsg 1.0.6 REQUIRED)
-find_package(vsgXchange 1.0.0 REQUIRED)
+find_package(vsg 1.0.8 REQUIRED)
+find_package(vsgXchange 1.0.4 REQUIRED)
 
 vsg_setup_build_vars()
 vsg_setup_dir_vars()
