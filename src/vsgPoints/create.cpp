@@ -197,10 +197,17 @@ vsg::ref_ptr<vsg::StateGroup> vsgPoints::createStateGroup(const vsgPoints::Setti
     mat->value().alphaMaskCutoff = 0.0025f;
     config->assignUniform("material", mat);
 
-    config->colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
-        {blending, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
+    struct SetPipelineStates : public vsg::Visitor
+    {
+        bool blending = false;
+        SetPipelineStates(bool in_blending) { blending = in_blending; }
 
-    config->inputAssemblyState->topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+        void apply(vsg::Object& object) { object.traverse(*this); }
+        void apply(vsg::InputAssemblyState& ias) { ias.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST; }
+        void apply(vsg::ColorBlendState& cbs) { cbs.configureAttachments(blending); }
+    } sps(blending);
+
+    config->accept(sps);
 
     config->init();
 
