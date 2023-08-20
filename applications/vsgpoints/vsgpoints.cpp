@@ -40,7 +40,6 @@ int main(int argc, char** argv)
     // set up defaults and read command line arguments to override them
     vsg::CommandLine arguments(&argc, argv);
 
-    // set up defaults and read command line arguments to override them
     auto options = vsg::Options::create();
     options->paths = vsg::getEnvPaths("VSG_FILE_PATH");
     options->sharedObjects = vsg::SharedObjects::create();
@@ -130,7 +129,7 @@ int main(int argc, char** argv)
                 node->accept(convert);
                 auto bricks = convert.bricks;
 
-                std::cout<<"Created mesh to "<<format_number(bricks->count())<<" points."<<std::endl;
+                std::cout<<"Converted mesh to "<<format_number(bricks->count())<<" points."<<std::endl;
                 if (auto scene = vsgPoints::createSceneGraph(bricks, settings))
                 {
                     group->addChild(scene);
@@ -179,7 +178,7 @@ int main(int argc, char** argv)
     auto window = vsg::Window::create(windowTraits);
     if (!window)
     {
-        std::cout << "Could not create windows." << std::endl;
+        std::cout << "Could not create window." << std::endl;
         return 1;
     }
 
@@ -197,7 +196,7 @@ int main(int argc, char** argv)
 
     auto camera = vsg::Camera::create(perspective, lookAt, vsg::ViewportState::create(window->extent2D()));
 
-    // add close handler to respond the close window button and pressing escape
+    // add close handler to respond to the close window button and pressing escape
     viewer->addEventHandler(vsg::CloseHandler::create(viewer));
     viewer->addEventHandler(vsg::Trackball::create(camera));
 

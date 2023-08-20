@@ -74,7 +74,7 @@ vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsFlatShadedShaderSet(vsg::ref
 
     shaderSet->addPushConstantRange("pc", "", VK_SHADER_STAGE_VERTEX_BIT, 0, 128);
 
-    shaderSet->optionalDefines = {"VSG_POINT_SPRITE", "VSG_GREYSACLE_DIFFUSE_MAP"};
+    shaderSet->optionalDefines = {"VSG_POINT_SPRITE", "VSG_GREYSCALE_DIFFUSE_MAP"};
 
     shaderSet->customDescriptorSetBindings.push_back(vsg::ViewDependentStateBinding::create(1));
 
@@ -108,7 +108,7 @@ vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsPhongShaderSet(vsg::ref_ptr<
 
     shaderSet->addPushConstantRange("pc", "", VK_SHADER_STAGE_VERTEX_BIT, 0, 128);
 
-    shaderSet->optionalDefines = {"VSG_GREYSACLE_DIFFUSE_MAP", "VSG_TWO_SIDED_LIGHTING", "VSG_POINT_SPRITE"};
+    shaderSet->optionalDefines = {"VSG_GREYSCALE_DIFFUSE_MAP", "VSG_TWO_SIDED_LIGHTING", "VSG_POINT_SPRITE"};
 
     shaderSet->customDescriptorSetBindings.push_back(vsg::ViewDependentStateBinding::create(1));
 

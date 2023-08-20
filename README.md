@@ -1,30 +1,30 @@
 # vsgPoints - VulkanSceneGraph Point Cloud rendering
 
-Cross platform, open source (MIT license) C++17 library and example set for rendering large point cloud data using VulkanSceneGraph. vsgPoints provides support for generating hieracical LOD and pagaed LOD scene graph hierarchy to provide excellent performance and scalability. The support for database paging enables handling of very large point databases - over a billion point datasets run at a solid 60fps even on integrated GPUs.
+Cross platform, open source (MIT license) C++17 library and example set for rendering large point cloud data using VulkanSceneGraph. vsgPoints provides support for generating hierarchical LOD and paged LOD scene graph hierarchies to provide excellent performance and scalability. The support for database paging enables handling of very large point databases - over a billion point datasets run at a solid 60fps even on integrated GPUs.
 
-To enable efficient use of main and GPU memory point data is segmenent into bricks and the source x, y, z values are quantized to 8bit, 10bit or 16bit values. Using the vsgPoints::Settings structure users can select the precision (default of 1mm) and bit representation they require, the higher precision and lower the brick count the smaller the bricks that will be used. The quantized data is packed into formats support by graphics hardware enabling the vertex shaders to compute the final positions without any intermendiate conversions.
+To enable efficient use of main and GPU memory, point data is segmented into bricks and the source x, y, z values are quantized to 8bit, 10bit or 16bit values. Using the vsgPoints::Settings structure users can select the precision (default of 1mm) and bit representation they require, the higher precision and lower the brick count the smaller the bricks that will be used. The quantized data is packed into formats supported by graphics hardware enabling the vertex shaders to compute the final positions without any intermediate conversions.
 
-To enable handling of point data with very large woorld coordinates the data is translated to a local origin with a vsg::MatrixTransform used to place the rendered points in their properly world coordinate system.
+To enable handling of point data with very large world coordinates, the data is translated to a local origin with a vsg::MatrixTransform used to place the rendered points in their proper world coordinate system.
 
-The vsgPoints project contains a vsgPoints library that applications may link to add point cloud loading and scene graph creation capabilities to their applications, and vsgpoints utility program.
+The vsgPoints project contains a vsgPoints library that applications may link to if they wish to add point cloud loading and scene graph creation capabilities to their applications, and a vsgpoints utility program.
 
-## System requiements/constraints
+## System requirements/constraints
 
-vsgPoints is usable, but still in early in it's development. Cuurrently the reading and building of scene graphs is single threaded, and no attempt is done to minimize memory footprint, beyond quantization to 8/10/16bit. During read and scene graph generation so for very large datasets you will need succificent main memory, for billion points datasets you'll need 32GB+ main memory in order to build the scene graph.
+vsgPoints is usable, but still early in its development. Currently the reading and building of scene graphs is single threaded, and no attempt is made to minimize memory footprint, beyond quantization to 8/10/16bit. During read and scene graph generation of very large datasets you will need sufficient main memory, for billion points datasets you'll need 32GB+ main memory in order to build the scene graph.
 
-For flat or LOD scene graphs the GPU memory requirement loosely tracks the size of the scene graph in main memory/on disk so more likely to hit limits of available GPU memory. For very large point datasets it will be necessary to generate PagedLOD scene graphs which will result in creation of a hierarchy of PagedLOD nodes and associated files of disk, which can number in millions of files.  Paged databases perform very well, reducing the memory requirement substantially enabling much larger datasets to be viewed at high framerates with the VulkanSceneGraph's multi-threaded database pager seamlessly handling the file loading as well as load balancing.
+For flat or LOD scene graphs, the GPU memory requirement loosely tracks the size of the scene graph in main memory/on disk so the larger it is, the more likely it will hit limits of available GPU memory. For very large point datasets it will be necessary to generate PagedLOD scene graphs which will result in creation of a hierarchy of PagedLOD nodes and associated files on disk, which can number in millions of files.  Paged databases perform very well, reducing the memory requirement substantially and enabling much larger datasets to be viewed at high framerates with the VulkanSceneGraph's multi-threaded database pager seamlessly handling the file loading as well as load balancing.
 
-The downside with paged databases can be it stresses the filesystem/OS more when you want delete or move the directory hierarchy that has been generated by vsgPoints. In particular Windows can struggle when handling millions of files even on fast solid state disks, in particular if virus scanners are invoked during file operations.
+The downside with paged databases can be they stress the filesystem/OS more when you want to delete or move the directory hierarchy that has been generated by vsgPoints. In particular Windows can struggle when handling millions of files even on fast solid state disks, in particular if virus scanners are invoked during file operations.
 
 ## Roadmap
 
 Possible features for future development:
 
 * Multi-thread the reading of data and scene graph building,
-* Saving intermediate results to avoid overload main memory when building large point datasets to reduce memory footprint.
+* Saving intermediate results to avoid overloading main memory when building large point datasets and reduce memory footprint.
 * Features like picking would also be nice features to add.
 
-vsgPoints is open source, if you wish to see features developed then you are welcoome to contribute time or funding to help make this happen.
+vsgPoints is open source, if you wish to see features developed then you are welcome to contribute time or funding to help make this happen.
 
 ## Dependencies
 
@@ -32,7 +32,7 @@ vsgPoints is open source, if you wish to see features developed then you are wel
 
     C++17
     CMake
-    VukanSDK
+    VulkanSDK
     GLslang
     VulkanSceneGraph
     vsgXchange
@@ -75,14 +75,14 @@ vsgpoints supports generating scene graphs in three ways, the command line optio
 
 ~~~ sh
     # create vsg::LOD scene graph
-    vsgpoints mydata.BIN --lad
+    vsgpoints mydata.BIN --lod
     # or just rely upon the default being vsg::LOD scene graph
     vsgpoints mydata.BIN
 
     # create a flat group of point bricks
     vsgpoints mydata.BIN --flat
 
-    # create a paged database, requires a specification of output file
+    # create a paged database, requires specification of output file
     vsgpoints mydata.BIN -o paged.vsgb --plod
 ~~~
 
@@ -93,9 +93,9 @@ vsgpoints also supports generating points from meshed models, which can be enabl
     vsgpoints mymodel.gltf --mesh
 ~~~
 
-If you don't include an output filename using ~ -o filename.vsb ~ them vsgpoints will automatically create a viewer to view the created scene graph, but if you output to a file no viewer will be created, but if you still want to viewer to appear then add -v option to force the viewer to be created.
+If you don't include an output filename using ~ -o filename.vsgb ~ then vsgpoints will automatically create a viewer to view the created scene graph, but if you output to a file no viewer will be created. If you still want the viewer to appear then add the -v option to force the viewer to be created.
 
-To alter the precision and point size you can use the -p size_in_metres and --ps multiplier control the precision (defaults to 0.001) and point size (defaults to 4 x precision).
+To alter the precision and point size you can use the -p size_in_metres and --ps multiplier to control the precision (defaults to 0.001) and point size (defaults to 4 x precision).
 
 ~~~ sh
     # choose 5mm precision and ~50mm rendered point size (10 x 0.005)

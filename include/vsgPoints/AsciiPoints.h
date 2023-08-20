@@ -27,8 +27,6 @@ namespace vsgPoints
         vsg::ref_ptr<vsg::Object> read(const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const override;
 
         std::set<vsg::Path> supportedExtensions;
-
-    protected:
     };
 
 } // namespace vsgPoints

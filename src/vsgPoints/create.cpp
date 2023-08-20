@@ -129,11 +129,11 @@ bool vsgPoints::generateLevel(vsgPoints::Bricks& source, vsgPoints::Bricks& dest
         vsgPoints::Key destination_key = {source_key.x / 2, source_key.y / 2, source_key.z / 2, source_key.w * 2};
         vsg::ivec3 offset = {(source_key.x & 1) << bits, (source_key.y & 1) << bits, (source_key.z & 1) << bits};
 
-        auto& destinatio_brick = destination[destination_key];
-        if (!destinatio_brick) destinatio_brick = vsgPoints::Brick::create();
+        auto& destination_brick = destination[destination_key];
+        if (!destination_brick) destination_brick = vsgPoints::Brick::create();
 
         auto& source_points = source_brick->points;
-        auto& desintation_points = destinatio_brick->points;
+        auto& destination_points = destination_brick->points;
         size_t count = source_points.size();
         for (size_t i = 0; i < count; i += 4)
         {
@@ -145,7 +145,7 @@ bool vsgPoints::generateLevel(vsgPoints::Bricks& source, vsgPoints::Bricks& dest
             new_p.v.z = static_cast<uint16_t>((static_cast<int32_t>(p.v.z) + offset.z) / 2);
             new_p.c = p.c;
 
-            desintation_points.push_back(new_p);
+            destination_points.push_back(new_p);
         }
     }
     return !destination.empty();
@@ -211,7 +211,7 @@ vsg::ref_ptr<vsg::StateGroup> vsgPoints::createStateGroup(const vsgPoints::Setti
 
     config->init();
 
-    // create StateGroup as the root of the scene/command graph to hold the GraphicsProgram, and binding of Descriptors to decorate the whole graph
+    // create StateGroup as the root of the scene/command graph to hold the GraphicsPipeline, and binding of Descriptors to decorate the whole graph
     auto stateGroup = vsg::StateGroup::create();
 
     config->copyTo(stateGroup);
@@ -312,7 +312,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::subtile(vsgPoints::Settings& settings, vsgPoi
 
             auto plod = vsg::PagedLOD::create();
             plod->bound = bs;
-            plod->children[0] = vsg::PagedLOD::Child{transition, {}};  // external child visible when it's bound occupies more than ~1/4 of the height of the window
+            plod->children[0] = vsg::PagedLOD::Child{transition, {}};  // external child visible when its bound occupies more than ~1/4 of the height of the window
             plod->children[1] = vsg::PagedLOD::Child{0.0, brick_node}; // visible always
 
             if (root)
@@ -359,7 +359,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::subtile(vsgPoints::Settings& settings, vsgPoi
     else
     {
         auto leaf = brick->createRendering(settings, key, bound);
-        //vsg::info("leaf  ",key, " ", brick, " leaf ", leaf, ", bound ", bound, ", brick->points.size() = ",  brick->points.size());
+        //vsg::info("leaf key  ",key, " ", brick, " leaf ", leaf, ", bound ", bound, ", brick->points.size() = ",  brick->points.size());
         return leaf;
     }
 
@@ -379,7 +379,7 @@ vsg::ref_ptr<vsg::Node> vsgPoints::createPagedLOD(vsgPoints::Levels& levels, vsg
 
     vsg::debug("rootBrickSize  = ", rootBrickSize);
 
-    // If only one level is present then PagedLOD not required so just add all the levels bricks to the StateGroup
+    // If only one level is present then PagedLOD is not required so just add all the levels bricks to the StateGroup
     if (levels.size() == 1)
     {
         vsg::dbox bound;

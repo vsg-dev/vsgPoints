@@ -2,8 +2,6 @@
 
 #include <vsgPoints/Bricks.h>
 
-#include <iostream>
-
 class ConvertMeshToPoints : public vsg::Inherit<vsg::ConstVisitor, ConvertMeshToPoints>
 {
 public:

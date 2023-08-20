@@ -1,5 +1,5 @@
 
-# vars used to enable subdirectories to extend the build of the vsgPoints library in a loose coupled way
+# vars used to enable subdirectories to extend the build of the vsgPoints library in a loosely coupled way
 set(EXTRA_DEFINES)
 set(EXTRA_INCLUDES)
 
