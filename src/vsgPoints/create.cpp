@@ -195,7 +195,7 @@ vsg::ref_ptr<vsg::StateGroup> vsgPoints::createStateGroup(const vsgPoints::Setti
     auto mat = vsg::PhongMaterialValue::create();
     mat->value().alphaMask = 1.0f;
     mat->value().alphaMaskCutoff = 0.0025f;
-    config->assignUniform("material", mat);
+    config->assignDescriptor("material", mat);
 
     struct SetPipelineStates : public vsg::Visitor
     {
