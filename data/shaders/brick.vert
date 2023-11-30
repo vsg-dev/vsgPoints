@@ -2,6 +2,9 @@
 #extension GL_ARB_separate_shader_objects : enable
 #pragma import_defines (VSG_POSITION_SCALE)
 
+#define VIEW_DESCRIPTOR_SET 0
+#define MATERIAL_DESCRIPTOR_SET 1
+
 layout(push_constant) uniform PushConstants {
     mat4 projection;
     mat4 modelView;
@@ -24,7 +27,7 @@ layout(location = 2) out vec4 vertexColor;
 
 layout(location = 5) out vec3 viewDir;
 
-layout(set = 1, binding = 1) uniform ViewportData
+layout(set = VIEW_DESCRIPTOR_SET, binding = 1) uniform ViewportData
 {
     vec4 values[1];
 } viewportData;

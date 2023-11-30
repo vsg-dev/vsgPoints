@@ -17,6 +17,9 @@ Root id=1 vsg::ShaderStage
 #extension GL_ARB_separate_shader_objects : enable
 #pragma import_defines (VSG_POSITION_SCALE)
 
+#define VIEW_DESCRIPTOR_SET 0
+#define MATERIAL_DESCRIPTOR_SET 1
+
 layout(push_constant) uniform PushConstants {
     mat4 projection;
     mat4 modelView;
@@ -39,7 +42,7 @@ layout(location = 2) out vec4 vertexColor;
 
 layout(location = 5) out vec3 viewDir;
 
-layout(set = 1, binding = 1) uniform ViewportData
+layout(set = VIEW_DESCRIPTOR_SET, binding = 1) uniform ViewportData
 {
     vec4 values[1];
 } viewportData;
@@ -95,7 +98,7 @@ void main()
      30 0 262215 59 30 5 262215 62 30 1 262215 68
      30 2 262215 70 30 2 262215 76 30 4 262215 89
      6 16 327752 90 0 35 0 196679 90 2 262215 92
-     34 1 262215 92 33 1 131091 2 196641 3 2 196630
+     34 0 262215 92 33 1 131091 2 196641 3 2 196630
      6 32 262167 7 6 4 262176 8 7 7 262167 10
      6 3 262176 11 1 10 262203 11 12 1 262187 6
      14 1065353216 262203 11 20 1 262187 6 22 0 262174 27
