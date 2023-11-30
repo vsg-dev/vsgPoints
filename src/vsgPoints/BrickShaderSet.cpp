@@ -13,13 +13,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsgPoints/BrickShaderSet.h>
 
 #include "shaders/brick_vert.cpp"
-#include "shaders/standard_flat_shaded_frag.cpp"
-#include "shaders/standard_phong_frag.cpp"
+#include "shaders/brick_flat_shaded_frag.cpp"
+#include "shaders/brick_phong_frag.cpp"
 
 #include <vsg/all.h>
 #include <vsg/io/Logger.h>
 
 using namespace vsgPoints;
+
+#define VIEW_DESCRIPTOR_SET 0
+#define MATERIAL_DESCRIPTOR_SET 1
 
 vsg::ref_ptr<vsg::Data> vsgPoints::createParticleImage(uint32_t dim)
 {
@@ -58,8 +61,8 @@ vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsFlatShadedShaderSet(vsg::ref
     auto vertexShader = vsg::read_cast<vsg::ShaderStage>("shaders/brick.vert", options);
     if (!vertexShader) vertexShader = brick_vert(); // fallback to shaders/brick_vert.cpp
 
-    auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/standard_flat_shaded.frag", options);
-    if (!fragmentShader) fragmentShader = standard_flat_shaded_frag();
+    auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/brick_flat_shaded.frag", options);
+    if (!fragmentShader) fragmentShader = brick_flat_shaded_frag();
 
     auto shaderSet = vsg::ShaderSet::create(vsg::ShaderStages{vertexShader, fragmentShader});
 
@@ -69,14 +72,18 @@ vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsFlatShadedShaderSet(vsg::ref
     shaderSet->addAttributeBinding("vsg_PositionScale", "VSG_POSITION_SCALE", 3, VK_FORMAT_R32G32B32A32_SFLOAT, vsg::vec4Value::create(0.0f, 0.0f, 0.0, 1.0f));
     shaderSet->addAttributeBinding("vsg_PointSize", "", 4, VK_FORMAT_R32G32_SFLOAT, vsg::vec2Value::create(0.0035f, 0.001f));
 
-    shaderSet->addDescriptorBinding("diffuseMap", "VSG_DIFFUSE_MAP", 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::ubvec4Array2D::create(1, 1, vsg::Data::Properties{VK_FORMAT_R8G8B8A8_UNORM}));
-    shaderSet->addDescriptorBinding("material", "", 0, 10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::PhongMaterialValue::create());
+    shaderSet->addDescriptorBinding("diffuseMap", "VSG_DIFFUSE_MAP", MATERIAL_DESCRIPTOR_SET, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::ubvec4Array2D::create(1, 1, vsg::Data::Properties{VK_FORMAT_R8G8B8A8_UNORM}));
+    shaderSet->addDescriptorBinding("material", "", MATERIAL_DESCRIPTOR_SET, 10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::PhongMaterialValue::create());
+
+    shaderSet->addDescriptorBinding("lightData", "", VIEW_DESCRIPTOR_SET, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec4Array::create(64));
+    shaderSet->addDescriptorBinding("viewportData", "", VIEW_DESCRIPTOR_SET, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec4Value::create(0,0, 1280, 1024));
+    shaderSet->addDescriptorBinding("shadowMaps", "", VIEW_DESCRIPTOR_SET, 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::floatArray3D::create(1, 1, 1, vsg::Data::Properties{VK_FORMAT_R32_SFLOAT}));
 
     shaderSet->addPushConstantRange("pc", "", VK_SHADER_STAGE_VERTEX_BIT, 0, 128);
 
     shaderSet->optionalDefines = {"VSG_POINT_SPRITE", "VSG_GREYSCALE_DIFFUSE_MAP"};
 
-    shaderSet->customDescriptorSetBindings.push_back(vsg::ViewDependentStateBinding::create(1));
+    shaderSet->customDescriptorSetBindings.push_back(vsg::ViewDependentStateBinding::create(VIEW_DESCRIPTOR_SET));
 
     return shaderSet;
 }
@@ -91,8 +98,9 @@ vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsPhongShaderSet(vsg::ref_ptr<
 
     auto vertexShader = vsg::read_cast<vsg::ShaderStage>("shaders/brick.vert", options);
     if (!vertexShader) vertexShader = brick_vert(); // fallback to shaders/brick_vert.cpp
-    auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/standard_phong.frag", options);
-    if (!fragmentShader) fragmentShader = standard_phong_frag();
+
+    auto fragmentShader = vsg::read_cast<vsg::ShaderStage>("shaders/brick_phong.frag", options);
+    if (!fragmentShader) fragmentShader = brick_phong_frag();
 
     auto shaderSet = vsg::ShaderSet::create(vsg::ShaderStages{vertexShader, fragmentShader});
 
@@ -102,15 +110,18 @@ vsg::ref_ptr<vsg::ShaderSet> vsgPoints::createPointsPhongShaderSet(vsg::ref_ptr<
     shaderSet->addAttributeBinding("vsg_PositionScale", "VSG_POSITION_SCALE", 3, VK_FORMAT_R32G32B32A32_SFLOAT, vsg::vec4Value::create(0.0f, 0.0f, 0.0, 1.0f));
     shaderSet->addAttributeBinding("vsg_PointSize", "", 4, VK_FORMAT_R32G32_SFLOAT, vsg::vec2Value::create(0.0035f, 0.001f));
 
-    shaderSet->addDescriptorBinding("diffuseMap", "VSG_DIFFUSE_MAP", 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::ubvec4Array2D::create(1, 1, vsg::Data::Properties{VK_FORMAT_R8G8B8A8_UNORM}));
-    shaderSet->addDescriptorBinding("material", "", 0, 10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::PhongMaterialValue::create());
-    shaderSet->addDescriptorBinding("lightData", "", 1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec4Array::create(64));
+    shaderSet->addDescriptorBinding("diffuseMap", "VSG_DIFFUSE_MAP", MATERIAL_DESCRIPTOR_SET, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::ubvec4Array2D::create(1, 1, vsg::Data::Properties{VK_FORMAT_R8G8B8A8_UNORM}));
+    shaderSet->addDescriptorBinding("material", "", MATERIAL_DESCRIPTOR_SET, 10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::PhongMaterialValue::create());
+
+    shaderSet->addDescriptorBinding("lightData", "", VIEW_DESCRIPTOR_SET, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec4Array::create(64));
+    shaderSet->addDescriptorBinding("viewportData", "", VIEW_DESCRIPTOR_SET, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, vsg::vec4Value::create(0,0, 1280, 1024));
+    shaderSet->addDescriptorBinding("shadowMaps", "", VIEW_DESCRIPTOR_SET, 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, vsg::floatArray3D::create(1, 1, 1, vsg::Data::Properties{VK_FORMAT_R32_SFLOAT}));
 
     shaderSet->addPushConstantRange("pc", "", VK_SHADER_STAGE_VERTEX_BIT, 0, 128);
 
     shaderSet->optionalDefines = {"VSG_GREYSCALE_DIFFUSE_MAP", "VSG_TWO_SIDED_LIGHTING", "VSG_POINT_SPRITE"};
 
-    shaderSet->customDescriptorSetBindings.push_back(vsg::ViewDependentStateBinding::create(1));
+    shaderSet->customDescriptorSetBindings.push_back(vsg::ViewDependentStateBinding::create(VIEW_DESCRIPTOR_SET));
 
     return shaderSet;
 }

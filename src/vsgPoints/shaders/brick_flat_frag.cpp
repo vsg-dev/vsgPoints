@@ -1,11 +1,12 @@
 #include <vsg/io/VSG.h>
 #include <vsg/io/mem_stream.h>
-static auto standard_flat_shaded_frag = []() {
+static auto brick_flat_frag = []() {
 static const char str[] = 
-R"(#vsga 1.0.6
+R"(#vsga 1.1.0
 Root id=1 vsg::ShaderStage
 {
   userObjects 0
+  mask 18446744073709551615
   stage 16
   entryPointName "main"
   module id=2 vsg::ShaderModule
@@ -16,17 +17,14 @@ Root id=1 vsg::ShaderStage
 #extension GL_ARB_separate_shader_objects : enable
 #pragma import_defines (VSG_POINT_SPRITE, VSG_DIFFUSE_MAP, VSG_GREYSCALE_DIFFUSE_MAP)
 
+#define VIEW_DESCRIPTOR_SET 0
+#define MATERIAL_DESCRIPTOR_SET 1
+
 #ifdef VSG_DIFFUSE_MAP
-layout(binding = 0) uniform sampler2D diffuseMap;
+layout(set = MATERIAL_DESCRIPTOR_SET, binding = 0) uniform sampler2D diffuseMap;
 #endif
 
-layout(location = 2) in vec4 vertexColor;
-
-#ifndef VSG_POINT_SPRITE
-layout(location = 3) in vec2 texCoord0;
-#endif
-
-layout(binding = 10) uniform MaterialData
+layout(set = MATERIAL_DESCRIPTOR_SET, binding = 10) uniform MaterialData
 {
     vec4 ambientColor;
     vec4 diffuseColor;
@@ -36,6 +34,12 @@ layout(binding = 10) uniform MaterialData
     float alphaMask;
     float alphaMaskCutoff;
 } material;
+
+layout(location = 2) in vec4 vertexColor;
+
+#ifndef VSG_POINT_SPRITE
+layout(location = 3) in vec2 texCoord0;
+#endif
 
 layout(location = 0) out vec4 outColor;
 
@@ -79,7 +83,7 @@ void main()
      1685221231 48 262215 11 30 2 327752 13 0 35 0 327752
      13 1 35 16 327752 13 2 35 32 327752 13 3
      35 48 327752 13 4 35 64 327752 13 5 35 68
-     327752 13 6 35 72 196679 13 2 262215 15 34 0
+     327752 13 6 35 72 196679 13 2 262215 15 34 1
      262215 15 33 10 262215 44 30 0 262215 48 30 3
      131091 2 196641 3 2 196630 6 32 262167 7 6 4
      262176 8 7 7 262176 10 1 7 262203 10 11 1
