@@ -158,6 +158,8 @@ vsg::ref_ptr<vsg::StateGroup> vsgPoints::createStateGroup(const vsgPoints::Setti
     auto config = vsg::GraphicsPipelineConfig::create(shaderSet);
     bool blending = false;
 
+    if (settings.options) config->assignInheritedState(settings.options->inheritedState);
+
     auto& defines = config->shaderHints->defines;
     defines.insert("VSG_POINT_SPRITE");
 
