@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 
 project(vsgPoints
-    VERSION 0.1.1
+    VERSION 0.2.0
     DESCRIPTION "VulkanSceneGraph Point Cloud rendering."
     LANGUAGES CXX
 )
@@ -20,7 +20,7 @@ if (VULKAN_SDK)
 endif()
 
 find_package(vsg 1.1.0 REQUIRED)
-find_package(vsgXchange 1.0.4 REQUIRED)
+find_package(vsgXchange 1.0.5 REQUIRED)
 
 vsg_setup_build_vars()
 vsg_setup_dir_vars()
