@@ -1,6 +1,6 @@
 set(SOURCES
     ConvertMeshToPoints.cpp
-    vsgpoints.cpp
+    vsgpoints_example.cpp
 )
 
 add_executable(vsgpoints_example ${SOURCES})
