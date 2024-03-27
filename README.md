@@ -6,7 +6,7 @@ To enable efficient use of main and GPU memory, point data is segmented into bri
 
 To enable handling of point data with very large world coordinates, the data is translated to a local origin with a vsg::MatrixTransform used to place the rendered points in their proper world coordinate system.
 
-The vsgPoints project contains a vsgPoints library that applications may link to if they wish to add point cloud loading and scene graph creation capabilities to their applications, and a vsgpoints utility program.
+The vsgPoints project contains a vsgPoints library that applications may link to if they wish to add point cloud loading and scene graph creation capabilities to their applications, and a vsgpoints_example utility program.
 
 ## System requirements/constraints
 
@@ -46,18 +46,18 @@ Unix in source build:
     make -j 8
     make install
 
-# vsgpoints application usage
+# vsgpoints_example application usage
 
 To view .3dc or .asc point clouds, or .BIN (double x,y,z; uint8_t r, g, b) data :
 
 ~~~ sh
-   vsgpoints mydata.asc
+   vsgpoints_example mydata.asc
 ~~~~
 
 To convert point cloud data to VulkanSceneGraph native format:
 
 ~~~ sh
-   vsgpoints mydata.BIN -o mydata.vsgb
+   vsgpoints_example mydata.BIN -o mydata.vsgb
 ~~~~
 
 Once you have converted to native .vsgb format you can load the data in any VulkanSceneGraph application:
@@ -66,7 +66,7 @@ Once you have converted to native .vsgb format you can load the data in any Vulk
     vsgviewer mydata.vsgb
 ~~~
 
-vsgpoints supports generating scene graphs in three ways, the command line options for these are:
+vsgpoints_example supports generating scene graphs in three ways, the command line options for these are:
 
 | command line option | technique |
 | --lod | using LOD's (the default) |
@@ -75,29 +75,29 @@ vsgpoints supports generating scene graphs in three ways, the command line optio
 
 ~~~ sh
     # create vsg::LOD scene graph
-    vsgpoints mydata.BIN --lod
+    vsgpoints_example mydata.BIN --lod
     # or just rely upon the default being vsg::LOD scene graph
-    vsgpoints mydata.BIN
+    vsgpoints_example mydata.BIN
 
     # create a flat group of point bricks
-    vsgpoints mydata.BIN --flat
+    vsgpoints_example mydata.BIN --flat
 
     # create a paged database, requires specification of output file
-    vsgpoints mydata.BIN -o paged.vsgb --plod
+    vsgpoints_example mydata.BIN -o paged.vsgb --plod
 ~~~
 
-vsgpoints also supports generating points from meshed models, which can be enabled with --mesh
+vsgpoints_example also supports generating points from meshed models, which can be enabled with --mesh
 
 ~~~ sh
     # load a mesh model and convert to points as input rather than required loading of points data.
-    vsgpoints mymodel.gltf --mesh
+    vsgpoints_example mymodel.gltf --mesh
 ~~~
 
-If you don't include an output filename using ~ -o filename.vsgb ~ then vsgpoints will automatically create a viewer to view the created scene graph, but if you output to a file no viewer will be created. If you still want the viewer to appear then add the -v option to force the viewer to be created.
+If you don't include an output filename using ~ -o filename.vsgb ~ then vsgpoints_example will automatically create a viewer to view the created scene graph, but if you output to a file no viewer will be created. If you still want the viewer to appear then add the -v option to force the viewer to be created.
 
 To alter the precision and point size you can use the -p size_in_metres and --ps multiplier to control the precision (defaults to 0.001) and point size (defaults to 4 x precision).
 
 ~~~ sh
     # choose 5mm precision and ~50mm rendered point size (10 x 0.005)
-    vsgpoints mydata.3dc -p 0.005 --ps 10
+    vsgpoints_example mydata.3dc -p 0.005 --ps 10
 ~~~

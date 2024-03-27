@@ -1,1 +1,1 @@
-add_subdirectory(vsgpoints)
+add_subdirectory(vsgpoints_example)
