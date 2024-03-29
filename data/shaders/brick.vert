@@ -27,9 +27,9 @@ layout(location = 2) out vec4 vertexColor;
 
 layout(location = 5) out vec3 viewDir;
 
-layout(set = VIEW_DESCRIPTOR_SET, binding = 1) uniform ViewportData
+layout(set = VIEW_DESCRIPTOR_SET, binding = 1) buffer ViewportData
 {
-    vec4 values[1];
+    vec4 values[];
 } viewportData;
 
 out gl_PerVertex{
