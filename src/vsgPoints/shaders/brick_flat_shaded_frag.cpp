@@ -2,7 +2,7 @@
 #include <vsg/io/mem_stream.h>
 static auto brick_flat_shaded_frag = []() {
 static const char str[] = 
-R"(#vsga 1.1.0
+R"(#vsga 1.1.2
 Root id=1 vsg::ShaderStage
 {
   userObjects 0
