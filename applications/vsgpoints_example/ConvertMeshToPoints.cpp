@@ -77,7 +77,7 @@ void ConvertMeshToPoints::apply(const vsg::Node& node)
 
 void ConvertMeshToPoints::apply(const vsg::StateGroup& stategroup)
 {
-    auto arrayState = stategroup.prototypeArrayState ? stategroup.prototypeArrayState->clone(arrayStateStack.back()) : arrayStateStack.back()->clone();
+    auto arrayState = stategroup.prototypeArrayState ? stategroup.prototypeArrayState->cloneArrayState(arrayStateStack.back()) : arrayStateStack.back()->cloneArrayState();
 
     for (auto& statecommand : stategroup.stateCommands)
     {
