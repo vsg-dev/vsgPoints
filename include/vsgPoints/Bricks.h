@@ -16,6 +16,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsgPoints/Brick.h>
 
+#include <list>
+
 namespace vsgPoints
 {
     class VSGPOINTS_DECLSPEC Bricks : public vsg::Inherit<vsg::Object, Bricks>
