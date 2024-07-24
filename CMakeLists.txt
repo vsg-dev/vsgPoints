@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 
 project(vsgPoints
-    VERSION 0.5.0
+    VERSION 0.6.0
     DESCRIPTION "VulkanSceneGraph Point Cloud rendering."
     LANGUAGES CXX
 )
