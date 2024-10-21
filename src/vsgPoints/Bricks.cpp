@@ -59,7 +59,7 @@ void Bricks::add(const vsg::dvec3& v, const vsg::ubvec4& c)
 size_t Bricks::count() const
 {
     size_t num = 0;
-    for(auto& [key, brick] : bricks)
+    for (auto& [key, brick] : bricks)
     {
         num += brick->points.size();
     }
