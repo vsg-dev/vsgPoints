@@ -29,7 +29,7 @@ void Bricks::add(const vsg::dvec3& v, const vsg::ubvec4& c)
 
     auto divide_round = [](int64_t value, int64_t divisor) -> int64_t {
         if (value < 0)
-            return -1 - (-value / divisor);
+            return -1 - -(value + 1) / divisor;
         else
             return value / divisor;
     };
