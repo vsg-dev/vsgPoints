@@ -51,8 +51,14 @@ if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
 
 endif()
 
+# enable folders for MSVC
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 # source directories for vsgPoints library
 add_subdirectory(src)
+
+set(CMAKE_FOLDER applications)
 add_subdirectory(applications)
+unset(CMAKE_FOLDER)
 
 vsg_add_feature_summary()
