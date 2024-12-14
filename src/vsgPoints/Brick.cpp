@@ -122,7 +122,7 @@ vsg::ref_ptr<vsg::Node> Brick::createRendering(const Settings& settings, Key key
     }
 
     vsg::vec2 pointSize(brickPrecision * settings.pointSize, brickPrecision);
-    vsg::vec4 positionScale(position.x, position.y, position.z, brickSize);
+    vsg::vec4 positionScale(position.x, position.y, position.z, brickSize - brickPrecision);
 
     return createRendering(settings, positionScale, pointSize);
 }
