@@ -28,13 +28,17 @@ vsg_setup_dir_vars()
 vsg_add_target_clang_format(
     FILES
         include/vsgPoints/*.h
+        include/vsgPoints/utils/*.h
         src/vsgPoints/*.cpp
+        src/vsgPoints/utils/*.cpp
 )
 vsg_add_target_clobber()
 vsg_add_target_cppcheck(
     FILES
         ${CMAKE_SOURCE_DIR}/src/vsgPoints/*.cpp
         ${CMAKE_SOURCE_DIR}/include/vsgPoints/*.h
+        ${CMAKE_SOURCE_DIR}/include/vsgPoints/*.h
+        ${CMAKE_SOURCE_DIR}/include/vsgPoints/utils/*.h
     )
 vsg_add_target_docs(
     FILES
@@ -51,8 +55,14 @@ if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
 
 endif()
 
+# enable folders for MSVC
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 # source directories for vsgPoints library
 add_subdirectory(src)
+
+set(CMAKE_FOLDER applications)
 add_subdirectory(applications)
+unset(CMAKE_FOLDER)
 
 vsg_add_feature_summary()
