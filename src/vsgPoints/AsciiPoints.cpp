@@ -50,15 +50,21 @@ vsg::ref_ptr<vsg::Object> AsciiPoints::read(const vsg::Path& filename, vsg::ref_
 
     auto values = vsg::doubleArray::create(10);
     uint8_t alpha = 255;
+    vsg::vec3 normal(0.0f, 0.0f, 1.0f);
 
     std::ifstream fin(filenameToUse);
     while (fin)
     {
         if (auto numValuesRead = vsg::read_line(fin, values->data(), values->size()))
         {
-            if (numValuesRead >= 6)
+            if (numValuesRead >= 9)
             {
-                bricks->add(vsg::dvec3(values->at(0), values->at(1), values->at(2)), vsg::ubvec4(values->at(3), values->at(4), values->at(5), alpha));
+                bricks->add(vsg::dvec3(values->at(0), values->at(1), values->at(2)), vsg::ubvec4(values->at(3), values->at(4), values->at(5), alpha), vsg::vec3(values->at(6), values->at(7), values->at(8)));
+                settings->normals = true;
+            }
+            else if (numValuesRead >= 6)
+            {
+                bricks->add(vsg::dvec3(values->at(0), values->at(1), values->at(2)), vsg::ubvec4(values->at(3), values->at(4), values->at(5), alpha), normal);
             }
         }
     }

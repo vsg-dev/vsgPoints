@@ -33,6 +33,7 @@ namespace vsgPoints
         uint32_t bits = 10;
         float pointSize = 4.0f;
         float transition = 0.125f;
+        bool normals = false;
 
         CreateType createType = CREATE_LOD;
 

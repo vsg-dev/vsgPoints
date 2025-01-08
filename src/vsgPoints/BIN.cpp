@@ -62,6 +62,7 @@ vsg::ref_ptr<vsg::Object> BIN::read(const vsg::Path& filename, vsg::ref_ptr<cons
 
     auto points = vsg::Array<VsgIOPoint>::create(settings->numPointsPerBlock);
     uint8_t alpha = 255;
+    vsg::vec3 normal(0.0f, 0.0f, 1.0f);
 
     while (fin)
     {
@@ -74,7 +75,7 @@ vsg::ref_ptr<vsg::Object> BIN::read(const vsg::Path& filename, vsg::ref_ptr<cons
         for (size_t i = 0; i < numPointsRead; ++i)
         {
             auto& point = (*points)[i];
-            bricks->add(point.v, vsg::ubvec4(point.c.r, point.c.g, point.c.b, alpha));
+            bricks->add(point.v, vsg::ubvec4(point.c.r, point.c.g, point.c.b, alpha), normal);
         }
     }
 
