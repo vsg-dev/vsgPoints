@@ -144,6 +144,7 @@ bool vsgPoints::generateLevel(vsgPoints::Bricks& source, vsgPoints::Bricks& dest
             new_p.v.y = static_cast<uint16_t>((static_cast<int32_t>(p.v.y) + offset.y) / 2);
             new_p.v.z = static_cast<uint16_t>((static_cast<int32_t>(p.v.z) + offset.z) / 2);
             new_p.c = p.c;
+            new_p.n = p.n;
 
             destination_points.push_back(new_p);
         }
@@ -154,7 +155,7 @@ bool vsgPoints::generateLevel(vsgPoints::Bricks& source, vsgPoints::Bricks& dest
 vsg::ref_ptr<vsg::StateGroup> vsgPoints::createStateGroup(const vsgPoints::Settings& settings)
 {
     auto textureData = vsgPoints::createParticleImage(64);
-    auto shaderSet = vsgPoints::createPointsFlatShadedShaderSet(settings.options);
+    auto shaderSet = settings.normals ? vsgPoints::createPointsPhongShaderSet(settings.options) : vsgPoints::createPointsFlatShadedShaderSet(settings.options);
     auto config = vsg::GraphicsPipelineConfig::create(shaderSet);
     bool blending = false;
 
@@ -181,7 +182,13 @@ vsg::ref_ptr<vsg::StateGroup> vsgPoints::createStateGroup(const vsgPoints::Setti
         return {};
     }
 
-    config->enableArray("vsg_Normal", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec3), VK_FORMAT_R32G32B32_SFLOAT);
+    if (settings.normals)
+    {
+        config->enableArray("vsg_Normal", VK_VERTEX_INPUT_RATE_VERTEX, 4, VK_FORMAT_A2R10G10B10_SNORM_PACK32);
+    }
+    else
+        config->enableArray("vsg_Normal", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec3), VK_FORMAT_R32G32B32_SFLOAT);
+
     config->enableArray("vsg_Color", VK_VERTEX_INPUT_RATE_VERTEX, sizeof(vsg::ubvec4), VK_FORMAT_R8G8B8A8_UNORM);
     config->enableArray("vsg_PositionScale", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec4), VK_FORMAT_R32G32B32A32_SFLOAT);
     config->enableArray("vsg_PointSize", VK_VERTEX_INPUT_RATE_INSTANCE, sizeof(vsg::vec2), VK_FORMAT_R32G32_SFLOAT);

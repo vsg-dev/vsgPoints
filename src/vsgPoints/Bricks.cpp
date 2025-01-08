@@ -23,7 +23,7 @@ Bricks::Bricks(vsg::ref_ptr<Settings> in_settings) :
 {
 }
 
-void Bricks::add(const vsg::dvec3& v, const vsg::ubvec4& c)
+void Bricks::add(const vsg::dvec3& v, const vsg::ubvec4& c, const vsg::vec3& n)
 {
     settings->bound.add(v);
 
@@ -43,9 +43,15 @@ void Bricks::add(const vsg::dvec3& v, const vsg::ubvec4& c)
     vsg::t_vec3<int64_t> int64_key = {divide_round(int64_v.x, divisor), divide_round(int64_v.y, divisor), divide_round(int64_v.z, divisor)};
     Key key = {static_cast<int32_t>(int64_key.x), static_cast<int32_t>(int64_key.y), static_cast<int32_t>(int64_key.z), 1};
 
+    vsg::vec3 scaled_n = vsg::normalize(n) * (powf(2, 9) - 1.f);
+    vsg::vec3 rounded_n = {std::round(scaled_n.x), std::round(scaled_n.y), std::round(scaled_n.z)};
+    vsg::t_vec3<int16_t> int16_n = {static_cast<int16_t>(rounded_n.x), static_cast<int16_t>(rounded_n.y), static_cast<int16_t>(rounded_n.z)};
+    uint32_t packed_n = 3 << 30 | (static_cast<int32_t>(int16_n.x & 0x3FF) << 20) | (static_cast<int32_t>(int16_n.y & 0x3FF) << 10) | (static_cast<int32_t>(int16_n.z & 0x3FF));
+
     PackedPoint packedPoint;
     packedPoint.v.set(int64_v.x - key.x * divisor, int64_v.y - key.y * divisor, int64_v.z - key.z * divisor);
     packedPoint.c.set(c.r, c.g, c.b, c.a);
+    packedPoint.n = packed_n;
 
     auto& brick = bricks[key];
     if (!brick)

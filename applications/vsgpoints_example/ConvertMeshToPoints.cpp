@@ -20,6 +20,7 @@ void ConvertMeshToPoints::applyDraw(uint32_t firstVertex, uint32_t vertexCount, 
     auto matrix = localToWorld();
 
     vsg::ubvec4 color(255,255,255,255);
+    vsg::vec3 normal(0.0f, 0.0f, 1.0f);
 
     for (uint32_t instanceIndex = firstInstance; instanceIndex < lastIndex; ++instanceIndex)
     {
@@ -27,7 +28,7 @@ void ConvertMeshToPoints::applyDraw(uint32_t firstVertex, uint32_t vertexCount, 
         {
             for (uint32_t i = firstVertex; i < endVertex; ++i)
             {
-                bricks->add(matrix * vsg::dvec3(vertices->at(i)), color);
+                bricks->add(matrix * vsg::dvec3(vertices->at(i)), color, normal);
             }
         }
     }
@@ -41,6 +42,7 @@ void ConvertMeshToPoints::applyDrawIndexed(uint32_t firstIndex, uint32_t indexCo
     auto matrix = localToWorld();
 
     vsg::ubvec4 color(255,255,255,255);
+    vsg::vec3 normal(0.0f, 0.0f, 1.0f);
 
     if (ushort_indices)
     {
@@ -50,7 +52,7 @@ void ConvertMeshToPoints::applyDrawIndexed(uint32_t firstIndex, uint32_t indexCo
             {
                 for (uint32_t i = firstIndex; i < endIndex; ++i)
                 {
-                    bricks->add(matrix * vsg::dvec3(vertices->at(ushort_indices->at(i))), color);
+                    bricks->add(matrix * vsg::dvec3(vertices->at(ushort_indices->at(i))), color, normal);
                 }
             }
         }
@@ -63,7 +65,7 @@ void ConvertMeshToPoints::applyDrawIndexed(uint32_t firstIndex, uint32_t indexCo
             {
                 for (uint32_t i = firstIndex; i < endIndex; ++i)
                 {
-                    bricks->add(matrix * vsg::dvec3(vertices->at(uint_indices->at(i))), color);
+                    bricks->add(matrix * vsg::dvec3(vertices->at(uint_indices->at(i))), color, normal);
                 }
             }
         }
