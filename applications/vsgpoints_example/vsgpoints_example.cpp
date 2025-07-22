@@ -40,6 +40,24 @@ int main(int argc, char** argv)
     // set up defaults and read command line arguments to override them
     vsg::CommandLine arguments(&argc, argv);
 
+    if (int type; arguments.read("--allocator", type)) vsg::Allocator::instance()->allocatorType = vsg::AllocatorType(type);
+    if (size_t objectsBlockSize; arguments.read("--objects", objectsBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_OBJECTS, objectsBlockSize);
+    if (size_t nodesBlockSize; arguments.read("--nodes", nodesBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_NODES, nodesBlockSize);
+    if (size_t dataBlockSize; arguments.read("--data", dataBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_DATA, dataBlockSize);
+
+    auto windowTraits = vsg::WindowTraits::create(arguments);
+    if (arguments.read("--test"))
+    {
+        windowTraits->swapchainPreferences.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+        windowTraits->fullscreen = true;
+    }
+    if (arguments.read({"--st", "--small-test"}))
+    {
+        windowTraits->swapchainPreferences.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+        windowTraits->width = 192, windowTraits->height = 108;
+        windowTraits->decoration = false;
+    }
+
     auto options = vsg::Options::create();
     options->paths = vsg::getEnvPaths("VSG_FILE_PATH");
     options->sharedObjects = vsg::SharedObjects::create();
@@ -53,27 +71,6 @@ int main(int argc, char** argv)
 #endif
 
     options->readOptions(arguments);
-
-    if (int type; arguments.read("--allocator", type)) vsg::Allocator::instance()->allocatorType = vsg::AllocatorType(type);
-    if (size_t objectsBlockSize; arguments.read("--objects", objectsBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_OBJECTS, objectsBlockSize);
-    if (size_t nodesBlockSize; arguments.read("--nodes", nodesBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_NODES, nodesBlockSize);
-    if (size_t dataBlockSize; arguments.read("--data", dataBlockSize)) vsg::Allocator::instance()->setBlockSize(vsg::ALLOCATOR_AFFINITY_DATA, dataBlockSize);
-
-    auto windowTraits = vsg::WindowTraits::create();
-    windowTraits->windowTitle = "vsgpoints";
-    windowTraits->debugLayer = arguments.read({"--debug", "-d"});
-    windowTraits->apiDumpLayer = arguments.read({"--api", "-a"});
-    if (arguments.read("--test"))
-    {
-        windowTraits->swapchainPreferences.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-        windowTraits->fullscreen = true;
-    }
-    if (arguments.read({"--st", "--small-test"}))
-    {
-        windowTraits->swapchainPreferences.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-        windowTraits->width = 192, windowTraits->height = 108;
-        windowTraits->decoration = false;
-    }
 
     // set up the Settings used to guide how point clouds are setup in the scene graph
     auto settings = vsgPoints::Settings::create();
