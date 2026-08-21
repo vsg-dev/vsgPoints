@@ -22,7 +22,7 @@ Doxyfile.docs
 Doxyfile.docs-vsgPoints
 vsgPointsConfig.cmake
 vsgPointsConfigVersion.cmake
-
+src/vsgPoints/vsgPointsTargets.cmake
 
 # Compiled Object files
 *.slo
