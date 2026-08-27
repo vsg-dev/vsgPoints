@@ -14,6 +14,8 @@ set(HEADERS
     ${HEADER_PATH}/BrickShaderSet.h
     ${HEADER_PATH}/Settings.h
     ${HEADER_PATH}/create.h
+    ${HEADER_PATH}/utils/PointsPolytopeIntersector.h
+    ${HEADER_PATH}/utils/PolygonIntersector.h
  )
 
 set(SOURCES
@@ -23,7 +25,23 @@ set(SOURCES
     Bricks.cpp
     BrickShaderSet.cpp
     create.cpp
+    utils/PointsPolytopeIntersector.cpp
+    utils/PolygonIntersector.cpp
 )
+
+# Group utils sub directories
+foreach(header ${HEADERS})
+    if (header MATCHES ".*/utils/.*")
+        source_group("Header Files/utils" FILES ${header})
+    endif()
+endforeach()
+
+foreach(source ${SOURCES})
+    if (source MATCHES "utils/.*")
+        # Explicitly group "utils" sources under "Source Files"
+        source_group("Source Files/utils" FILES ${source})
+    endif()
+endforeach()
 
 add_library(vsgPoints ${HEADERS} ${SOURCES})
 
