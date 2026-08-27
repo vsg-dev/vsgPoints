@@ -22,6 +22,7 @@ namespace vsgPoints
     {
         vsg::usvec3 v;
         vsg::ubvec4 c;
+        uint32_t n;
     };
 
 #pragma pack()

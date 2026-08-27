@@ -35,7 +35,7 @@ namespace vsgPoints
         vsg::ref_ptr<Settings> settings;
         BrickMap bricks;
 
-        void add(const vsg::dvec3& v, const vsg::ubvec4& c);
+        void add(const vsg::dvec3& v, const vsg::ubvec4& c, const vsg::vec3& n);
 
         iterator find(Key key) { return bricks.find(key); }
         const_iterator find(Key key) const { return bricks.find(key); }

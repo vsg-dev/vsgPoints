@@ -42,15 +42,30 @@ Brick::~Brick()
 vsg::ref_ptr<vsg::Node> Brick::createRendering(const Settings& settings, const vsg::vec4& positionScale, const vsg::vec2& pointSize)
 {
     vsg::ref_ptr<vsg::Data> vertices;
+    vsg::ref_ptr<vsg::Data> normals;
 
-    auto normals = vsg::vec3Value::create(vsg::vec3(0.0f, 0.0f, 1.0f));
     auto colors = vsg::ubvec4Array::create(points.size(), vsg::Data::Properties(VK_FORMAT_R8G8B8A8_UNORM));
     auto positionScaleValue = vsg::vec4Value::create(positionScale);
     auto pointSizeValue = vsg::vec2Value::create(pointSize);
 
-    normals->properties.format = VK_FORMAT_R32G32B32_SFLOAT;
     positionScaleValue->properties.format = VK_FORMAT_R32G32B32A32_SFLOAT;
     pointSizeValue->properties.format = VK_FORMAT_R32G32_SFLOAT;
+
+    if (settings.normals)
+    {
+        auto normals_10bit = vsg::uintArray::create(points.size(), vsg::Data::Properties(VK_FORMAT_A2R10G10B10_SNORM_PACK32));
+        auto normal_itr = normals_10bit->begin();
+        for (auto& point : points)
+        {
+            *(normal_itr++) = point.n;
+        }
+        normals = normals_10bit;
+    }
+    else
+    {
+        normals = vsg::vec3Value::create(vsg::vec3(0.0f, 0.0f, 1.0f));
+        normals->properties.format = VK_FORMAT_R32G32B32_SFLOAT;
+    }
 
     if (settings.bits == 8)
     {
